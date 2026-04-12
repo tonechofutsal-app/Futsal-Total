@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Futsal Pizarra v5.20</title>
+    <style>
+        :root { --pista-azul: #0D47A1; --area-color: rgba(255, 255, 255, 0.1); --linea: #FFFFFF; --panel-bg: #1a1a1a; --accent: #4CAF50; }
+        body { font-family: 'Segoe UI', sans-serif; margin: 0; background: #000; color: white; height: 100vh; overflow: hidden; display: flex; user-select: none; touch-action: none; }
+
+        /* --- BOTONES DE CONTROL SUPERIOR --- */
+        .controles-superiores {
+            position: absolute;
+            top: 15px;
+            right: 340px; 
+            display: flex;
+            gap: 10px;
+            z-index: 2000;
+        }
+        .btn-nav {
+            background: rgba(40, 40, 40, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            backdrop-filter: blur(4px);
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+        .btn-nav:hover { background: var(--accent); border-color: white; transform: scale(1.05); }
+
+        .contenedor-pista { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 15px; position: relative; overflow: hidden;}
+        .campo { position: relative; width: 95%; aspect-ratio: 2 / 1; background: var(--pista-azul); border: 4px solid var(--linea); max-height: 85vh; box-sizing: border-box; touch-action: none; }
+        .linea-medio { position: absolute; left: 50%; top: 0; bottom: 0; width: 3px; background: var(--linea); transform: translateX(-50%); }
+        .circulo-central { position: absolute; left: 50%; top: 50%; width: 15%; aspect-ratio: 1/1; border: 2px solid var(--linea); border-radius: 50%; transform: translate(-50%, -50%); background-color: var(--area-color); }
+        
+        .area-6m { position: absolute; top: 12.5%; height: 75%; width: 15%; pointer-events: none; }
+        .area-izq { left: 0; border-right: 2px solid var(--linea); height: 15%; top: 42.5%; background: var(--area-color); }
+        .area-izq::before, .area-izq::after { content: ""; position: absolute; left: 0; width: 100%; height: 200%; border: 2px solid var(--linea); border-left: none; background: var(--area-color); }
+        .area-izq::before { top: -200%; border-bottom: none; border-radius: 0 100% 0 0; }
+        .area-izq::after { bottom: -200%; border-top: none; border-radius: 0 0 100% 0; }
+        .area-der { right: 0; border-left: 2px solid var(--linea); height: 15%; top: 42.5%; background: var(--area-color); }
+        .area-der::before, .area-der::after { content: ""; position: absolute; right: 0; width: 100%; height: 200%; border: 2px solid var(--linea); border-right: none; background: var(--area-color); }
+        .area-der::before { top: -200%; border-bottom: none; border-radius: 100% 0 0 0; }
+        .area-der::after { bottom: -200%; border-top: none; border-radius: 0 0 0 100%; }
+
+        #canvas-dibujo { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; touch-action: none; }
+
+        .item-clonado { position: absolute; z-index: 100; cursor: move; display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; }
+        .item-clonado.selected { outline: 1px dashed var(--accent); outline-offset: 12px; }
+        .visual-container { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .label-material { font-size: 10px; margin-top: 5px; color: #ccc; pointer-events: none; text-transform: uppercase; font-weight: bold; text-align: center; }
+
+        .icono-material { position: relative; box-sizing: border-box; background: #CCFF00; }
+        .cono { clip-path: polygon(50% 0%, 0% 100%, 100% 100%); width: 25px; height: 25px; }
+        .escalera { background: repeating-linear-gradient(0deg, var(--color-custom, #CCFF00), var(--color-custom, #CCFF00) 4px, transparent 4px, transparent 12px); border: 2px solid var(--color-custom, #CCFF00); width: 30px; height: 80px; }
+        .marco-u-limpio { border: 3px solid var(--color-custom, #CCFF00); border-bottom: none; background: transparent !important; box-sizing: border-box; }
+        .u-reglamentaria { width: 80px; height: 40px; }
+        .u-mini { width: 38px; height: 22px; }
+        .obstaculo { width: 50px; height: 8px; background: #CCFF00; border-radius: 2px; }
+        
+        .espacio-libre { border: 3px dashed #CCFF00; background: transparent; width: 80px; height: 80px; border-radius: 4px; }
+        .espacio-ocupado { border: 1px solid rgba(255,255,255,0.3); background: rgba(204, 255, 0, 0.3); width: 80px; height: 80px; border-radius: 4px; }
+        .circulo-libre { border: 3px dashed #CCFF00; background: transparent; width: 80px; height: 80px; border-radius: 50%; }
+        .circulo-ocupado { border: 1px solid rgba(255,255,255,0.3); background: rgba(204, 255, 0, 0.3); width: 80px; height: 80px; border-radius: 50%; }
+
+        .jug-figura { position: relative; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
+        .jug-figura::before { content: ""; position: absolute; top: 25%; width: 140%; height: 50%; background: var(--color-bg, #FFD600); border: 2px solid var(--color-custom, #fff); border-radius: 15px; box-sizing: border-box; }
+        .jug-figura::after { content: ""; position: absolute; top: 5%; width: 50%; height: 50%; background: var(--color-bg, #FFD600); border: 2px solid var(--color-custom, #fff); border-radius: 50%; box-sizing: border-box; z-index: 2; }
+        .jug-figura .num { position: absolute; top: 45%; left: 50%; transform: translate(-50%, -50%); z-index: 5; font-weight: 900; font-size: 14px; color: #FFFFFF; text-shadow: 1px 1px 2px #000; pointer-events: none; }
+
+        .jug-l { --color-bg: #FFD600; --color-custom: #fff; }
+        .jug-v { --color-bg: #F44336; --color-custom: #fff; }
+        .port-l { --color-bg: #000; --color-custom: #FFD600; }
+        .port-v { --color-bg: #000; --color-custom: #F44336; }
+        .balon { font-size: 18px; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+
+        .popover-colores { position: absolute; bottom: -55px; background: #333; padding: 5px; border-radius: 20px; display: none; gap: 8px; border: 1px solid #555; box-shadow: 0 4px 10px rgba(0,0,0,0.5); z-index: 1000; }
+        .item-clonado.selected .popover-colores { display: flex; }
+        .dot-pop { width: 18px; height: 18px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(255,255,255,0.3); }
+
+        .resizer { position: absolute; width: 15px; height: 15px; background: #fff; border: 1px solid #000; display: none; z-index: 110; border-radius: 2px; }
+        .item-clonado.selected .resizer, .item-clonado.selected .btn-rotar { display: flex; }
+        .resizer.diagonal { bottom: -12px; right: -12px; cursor: se-resize; background: #FFD600; }
+        .resizer.base { bottom: -12px; left: 50%; transform: translateX(-50%); cursor: ns-resize; }
+        .resizer.lateral { right: -12px; top: 50%; transform: translateY(-50%); cursor: ew-resize; }
+        
+        .btn-rotar { position: absolute; top: -45px; right: -45px; width: 35px; height: 35px; background: #4CAF50; border-radius: 50%; display: none; align-items: center; justify-content: center; cursor: alias; color: #fff; font-size: 20px; border: 1px solid #fff; z-index: 120; }
+
+        .panel-tactico { width: 320px; background: var(--panel-bg); border-left: 2px solid #333; display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; overflow-y: auto; touch-action: pan-y; }
+        .seccion-titulo { font-size: 0.8rem; color: var(--accent); font-weight: bold; margin: 15px 0 10px 0; text-transform: uppercase; border-bottom: 2px solid #333; padding-bottom: 5px; }
+        .grid-ui { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: center; justify-items: center; }
+        .btn-ui { background: #333; border: 1px solid #555; color: white; padding: 12px 8px; cursor: pointer; border-radius: 4px; font-size: 0.75rem; width: 100%; font-weight: bold; touch-action: manipulation; }
+        .btn-ui.active { border-color: var(--accent); background: #111; color: var(--accent); }
+        
+        .preview-box { display: flex; flex-direction: column; align-items: center; cursor: grab; padding: 5px; border-radius: 8px; touch-action: none; }
+        .preview-box span { font-size: 11px; color: #fff; margin-top: 8px; text-transform: uppercase; font-weight: 800; text-align: center; }
+
+        .control-point { position: absolute; width: 20px; height: 20px; background: #FFEB3B; border: 2px solid #000; border-radius: 50%; cursor: crosshair; z-index: 200; display: none; transform: translate(-50%, -50%); touch-action: none; }
+    </style>
+</head>
+<body onclick="deseleccionarTodo()">
+
+<div class="controles-superiores">
+    <button class="btn-nav" onclick="window.location.href='Futsal Total.html'" title="Menú Principal">🏠</button>
+    <button class="btn-nav" onclick="toggleFullScreen()" title="Pantalla Completa">⛶</button>
+</div>
+
+<div class="contenedor-pista">
+    <div class="campo" id="pista-zona" onclick="deseleccionarTodo(); event.stopPropagation()">
+        <div class="linea-medio"></div><div class="circulo-central"></div>
+        <div class="area-6m area-izq"></div><div class="area-6m area-der"></div>
+        <canvas id="canvas-dibujo"></canvas>
+        <div id="curva-control" class="control-point"></div>
+    </div>
+</div>
+
+<div class="panel-tactico" onclick="event.stopPropagation()">
+    <div class="seccion-titulo">INTERACCIÓN</div>
+    <div class="grid-ui" style="grid-template-columns: 1fr 1fr;">
+        <button id="btn-mover" class="btn-ui active" onclick="setModo('mover')">🖐️ MOVER</button>
+        <button id="btn-dibujar" class="btn-ui" onclick="setModo('dibujar')">✏️ DIBUJAR</button>
+    </div>
+
+    <div id="controles-dibujo" style="display:none;">
+        <div class="seccion-titulo">TRAZO</div>
+        <div class="grid-ui">
+            <button id="btn-t-recto" class="btn-ui active" onclick="setEstilo('recto')">RECTA</button>
+            <button id="btn-t-curva" class="btn-ui" onclick="setEstilo('curva')">CURVA</button>
+            <button id="btn-t-libre" class="btn-ui" onclick="setEstilo('libre')">LIBRE</button>
+        </div>
+        <div class="seccion-titulo">EFECTO</div>
+        <div class="grid-ui">
+            <button id="btn-e-cont" class="btn-ui active" onclick="setEfecto('continuo')">CONT.</button>
+            <button id="btn-e-disc" class="btn-ui" onclick="setEfecto('discontinuo')">DISC.</button>
+            <button id="btn-e-ondu" class="btn-ui" onclick="setEfecto('ondulado')">OND.</button>
+        </div>
+        <button class="btn-ui" style="grid-column: 1/span 3; background:#444; margin-top:5px" onclick="deshacer()">↩ DESHACER</button>
+    </div>
+    
+    <div class="seccion-titulo">JUGADORES Y PORTEROS</div>
+    <div class="grid-ui" style="grid-template-columns: repeat(4, 1fr); gap: 5px;">
+        <div class="preview-box" onpointerdown="crear(event, 'jug-l')"><div class="jug-figura jug-l"><div class="num">L</div></div><span>LOC</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'jug-v')"><div class="jug-figura jug-v"><div class="num">V</div></div><span>VIS</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'port-l')"><div class="jug-figura port-l"><div class="num">P</div></div><span>PTL</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'port-v')"><div class="jug-figura port-v"><div class="num">P</div></div><span>PTV</span></div>
+    </div>
+
+    <div class="seccion-titulo">MATERIAL</div>
+    <div class="grid-ui">
+        <div class="preview-box" onpointerdown="crear(event, 'cono', 'CONO')"><div class="icono-material cono"></div><span>CONO</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'escalera', 'ESCALERA')"><div class="icono-material escalera" style="height:35px; width:12px"></div><span>ESCALERA</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'obstaculo', 'VALLA')"><div class="icono-material obstaculo" style="width:35px; height:6px;"></div><span>VALLA</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'marco-u-limpio u-reglamentaria', 'PORTERÍA')"><div class="marco-u-limpio u-reglamentaria" style="width:30px; height:15px; border-width:2px;"></div><span>PORTERÍA</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'marco-u-limpio u-mini', 'MINI-PTA')"><div class="marco-u-limpio u-mini" style="width:18px; height:10px; border-width:2px;"></div><span>MINI-PTA</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'balon')"><div class="balon">⚽</div><span>BALÓN</span></div>
+    </div>
+
+    <div class="seccion-titulo">ZONAS</div>
+    <div class="grid-ui" style="grid-template-columns: repeat(2, 1fr);">
+        <div class="preview-box" onpointerdown="crear(event, 'espacio-libre', 'ZONA C.')"><div class="espacio-libre" style="width:30px; height:30px; border-width:2px;"></div><span>CUAD. L</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'espacio-ocupado', 'ZONA C.')"><div class="espacio-ocupado" style="width:30px; height:30px;"></div><span>CUAD. O</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'circulo-libre', 'ZONA R.')"><div class="circulo-libre" style="width:30px; height:30px; border-width:2px;"></div><span>CIRC. L</span></div>
+        <div class="preview-box" onpointerdown="crear(event, 'circulo-ocupado', 'ZONA R.')"><div class="circulo-ocupado" style="width:30px; height:30px;"></div><span>CIRC. O</span></div>
+    </div>
+
+    <div style="flex-grow: 1;"></div>
+    <button class="btn-ui" style="background:#D50000; width:100%; padding:10px;" onclick="location.reload()">🗑️ REINICIAR</button>
+</div>
+
+<script>
+    const campo = document.getElementById('pista-zona');
+    const canvas = document.getElementById('canvas-dibujo');
+    const ctx = canvas.getContext('2d');
+    const tiradorCurva = document.getElementById('curva-control');
+
+    let modo = 'mover', dibujando = false, selectedEl = null, zIndexGlobal = 100, numL = 1, numV = 1, trazos = [];
+    let colorAct = 'white', grosorAct = 3, estiloAct = 'recto', efectoAct = 'continuo', startX, startY;
+
+    function resize() { canvas.width = campo.clientWidth; canvas.height = campo.clientHeight; render(); }
+    window.onload = resize; window.onresize = resize;
+
+    function toggleFullScreen() {
+        if (!document.fullscreenElement) {
+            document.documentElement.requestFullscreen();
+        } else {
+            if (document.exitFullscreen) {
+                document.exitFullscreen();
+            }
+        }
+    }
+
+    function setModo(m) {
+        modo = m;
+        document.getElementById('btn-mover').classList.toggle('active', m === 'mover');
+        document.getElementById('btn-dibujar').classList.toggle('active', m === 'dibujar');
+        document.getElementById('controles-dibujo').style.display = m === 'dibujar' ? 'block' : 'none';
+        canvas.style.pointerEvents = m === 'dibujar' ? 'auto' : 'none';
+        if(m !== 'dibujar') tiradorCurva.style.display = 'none';
+        deseleccionarTodo();
+    }
+
+    function setEstilo(s) { estiloAct = s; ['recto', 'curva', 'libre'].forEach(id => document.getElementById('btn-t-'+id).classList.toggle('active', s === id)); }
+    function setEfecto(e) { efectoAct = e; ['btn-e-cont', 'btn-e-disc', 'btn-e-ondu'].forEach(id => document.getElementById(id).classList.toggle('active', id.includes(e.substring(0,4)))); }
+
+    function deshacer() { trazos.pop(); tiradorCurva.style.display = 'none'; render(); }
+    function deseleccionarTodo() { if(selectedEl) { selectedEl.classList.remove('selected'); selectedEl = null; } }
+
+    function renderLine(t, points) {
+        if(points.length < 2) return;
+        ctx.beginPath(); ctx.setLineDash(t.efecto === 'discontinuo' ? [12, 12] : []);
+        let lastX, lastY, angle;
+        if(t.efecto === 'ondulado') {
+            ctx.moveTo(points[0].x, points[0].y); let distTotal = 0;
+            for(let i=1; i<points.length; i++) {
+                let p1 = points[i-1], p2 = points[i];
+                let d = Math.sqrt((p2.x-p1.x)**2 + (p2.y-p1.y)**2); let steps = Math.ceil(d / 2);
+                for(let j=0; j<=steps; j++) {
+                    let pct = j/steps; let currX = p1.x + (p2.x-p1.x)*pct; let currY = p1.y + (p2.y-p1.y)*pct;
+                    distTotal += d/steps; let s = Math.sin(distTotal * 0.2) * (t.size * 1.5);
+                    angle = Math.atan2(p2.y-p1.y, p2.x-p1.x); lastX = currX + Math.cos(angle+Math.PI/2)*s; lastY = currY + Math.sin(angle+Math.PI/2)*s; ctx.lineTo(lastX, lastY);
+                }
+            }
+        } else { 
+            ctx.moveTo(points[0].x, points[0].y); points.forEach(p => ctx.lineTo(p.x, p.y));
+            const pLast = points[points.length-1], pPrev = points[points.length-2];
+            lastX = pLast.x; lastY = pLast.y; angle = Math.atan2(pLast.y - pPrev.y, pLast.x - pPrev.x);
+        }
+        ctx.stroke(); ctx.fillStyle = ctx.strokeStyle; 
+        const h = t.size * 2.5, w = t.size * 2;
+        ctx.save(); ctx.translate(lastX, lastY); ctx.rotate(angle); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(-h, -w); ctx.lineTo(-h, w); ctx.closePath(); ctx.fill(); ctx.restore();
+    }
+
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        trazos.forEach(t => {
+            ctx.strokeStyle = t.color; ctx.lineWidth = t.size; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            if(t.estilo === 'recto') renderLine(t, [t.pts[0], t.end]);
+            else if(t.estilo === 'libre') renderLine(t, t.pts);
+            else if(t.estilo === 'curva') {
+                let pts = []; for(let i=0; i<=50; i++) { let pct = i/50; pts.push({ x: (1-pct)**2 * t.pts[0].x + 2*(1-pct)*pct*t.cp.x + pct**2 * t.end.x, y: (1-pct)**2 * t.pts[0].y + 2*(1-pct)*pct*t.cp.y + pct**2 * t.end.y }); }
+                renderLine(t, pts);
+            }
+        });
+    }
+
+    function crear(e, tipo, nombre = "") {
+        if(modo !== 'mover') return;
+        e.preventDefault();
+        const wrapper = document.createElement('div');
+        wrapper.className = 'item-clonado';
+        wrapper.dataset.angulo = 0;
+        
+        const visualCont = document.createElement('div');
+        visualCont.className = 'visual-container';
+        const el = document.createElement('div');
+        
+        const isJug = tipo.includes('jug') || tipo.includes('port');
+        const isMaterialExpansible = !isJug && tipo !== 'balon';
+
+        if(isJug) {
+            el.className = `jug-figura ${tipo}`;
+            const numSpan = document.createElement('div');
+            numSpan.className = 'num';
+            if(tipo.includes('port')) numSpan.innerText = 'P';
+            else if(tipo.includes('-l')) numSpan.innerText = numL++;
+            else numSpan.innerText = numV++;
+            el.appendChild(numSpan);
+        } else {
+            el.className = tipo === 'balon' ? 'balon' : `icono-material ${tipo}`;
+            if(tipo === 'balon') el.innerText = "⚽";
+        }
+        
+        visualCont.appendChild(el);
+        if(nombre) { const l = document.createElement('div'); l.className = 'label-material'; l.innerText = nombre; visualCont.appendChild(l); }
+        wrapper.appendChild(visualCont);
+
+        const pop = document.createElement('div');
+        pop.className = 'popover-colores';
+        pop.onclick = (ev) => ev.stopPropagation();
+        ['#CCFF00', '#F44336', '#2196F3', '#FFEB3B', '#FFFFFF'].forEach(color => {
+            const dot = document.createElement('div');
+            dot.className = 'dot-pop';
+            dot.style.background = color;
+            dot.onpointerdown = (ev) => {
+                ev.stopPropagation();
+                if(isJug) el.style.setProperty('--color-bg', color);
+                else { 
+                    el.style.setProperty('--color-custom', color);
+                    if(!tipo.includes('libre') && !tipo.includes('limpio')) el.style.background = color;
+                }
+            };
+            pop.appendChild(dot);
+        });
+        wrapper.appendChild(pop);
+
+        if(tipo !== 'balon') {
+            const rot = document.createElement('div'); rot.className = 'btn-rotar'; rot.innerHTML = '↻'; wrapper.appendChild(rot);
+            rot.onpointerdown = (ev) => {
+                ev.stopPropagation(); const rect = wrapper.getBoundingClientRect();
+                const cX = rect.left + rect.width/2; const cY = rect.top + rect.height/2;
+                const moveR = (me) => { 
+                    const angleDeg = Math.atan2(me.clientY - cY, me.clientX - cX) * (180/Math.PI) + 90; 
+                    wrapper.dataset.angulo = angleDeg; 
+                    wrapper.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`; 
+                };
+                const stopR = () => { window.removeEventListener('pointermove', moveR); window.removeEventListener('pointerup', stopR); };
+                window.addEventListener('pointermove', moveR); window.addEventListener('pointerup', stopR);
+            };
+
+            if(isMaterialExpansible) {
+                const addResizer = (clase, modoResize) => {
+                    const rs = document.createElement('div');
+                    rs.className = `resizer ${clase}`;
+                    wrapper.appendChild(rs);
+                    rs.onpointerdown = (ev) => {
+                        ev.stopPropagation();
+                        const sX = ev.clientX, sY = ev.clientY, sW = el.offsetWidth, sH = el.offsetHeight;
+                        const angRad = (parseFloat(wrapper.dataset.angulo) || 0) * (Math.PI/180);
+                        const move = (me) => {
+                            const dx = me.clientX - sX, dy = me.clientY - sY;
+                            const localX = dx * Math.cos(angRad) + dy * Math.sin(angRad);
+                            const localY = -dx * Math.sin(angRad) + dy * Math.cos(angRad);
+                            if(modoResize === 'diag') {
+                                const f = 1 + (localX + localY)/100;
+                                el.style.width = Math.max(10, sW * f) + "px";
+                                el.style.height = Math.max(10, sH * f) + "px";
+                            } else if(modoResize === 'base') {
+                                el.style.height = Math.max(5, sH + localY) + "px";
+                            } else if(modoResize === 'lat') {
+                                el.style.width = Math.max(5, sW + localX) + "px";
+                            }
+                        };
+                        const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
+                        window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop);
+                    };
+                };
+                addResizer('diagonal', 'diag');
+                addResizer('base', 'base');
+                addResizer('lateral', 'lat');
+            }
+        }
+
+        campo.appendChild(wrapper);
+        const rP = campo.getBoundingClientRect();
+        const initX = Math.max(0, Math.min(e.clientX - rP.left, rP.width));
+        const initY = Math.max(0, Math.min(e.clientY - rP.top, rP.height));
+        wrapper.style.left = initX + "px"; wrapper.style.top = initY + "px";
+        wrapper.style.transform = "translate(-50%, -50%)"; wrapper.style.zIndex = ++zIndexGlobal;
+        
+        let hasMoved = false;
+        wrapper.onpointerdown = (ev) => { 
+            if(modo !== 'mover') return;
+            ev.stopPropagation(); hasMoved = false;
+            const sX = ev.clientX, sY = ev.clientY, sL = wrapper.offsetLeft, sT = wrapper.offsetTop;
+            const move = (me) => { 
+                if(Math.abs(me.clientX-sX)>4 || Math.abs(me.clientY-sY)>4) hasMoved = true; 
+                let newX = Math.max(0, Math.min(sL + (me.clientX - sX), rP.width));
+                let newY = Math.max(0, Math.min(sT + (me.clientY - sY), rP.height));
+                wrapper.style.left = newX + "px"; wrapper.style.top = newY + "px"; 
+            };
+            const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
+            window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop);
+        };
+        wrapper.onclick = (ev) => { if(modo === 'mover' && !hasMoved) { ev.stopPropagation(); deseleccionarTodo(); selectedEl = wrapper; wrapper.classList.add('selected'); } };
+        wrapper.ondblclick = () => wrapper.remove();
+        
+        const moveIni = (me) => {
+            const r = campo.getBoundingClientRect();
+            wrapper.style.left = Math.max(0, Math.min(me.clientX - r.left, r.width)) + "px";
+            wrapper.style.top = Math.max(0, Math.min(me.clientY - r.top, r.height)) + "px";
+        };
+        const stopIni = () => { window.removeEventListener('pointermove', moveIni); window.removeEventListener('pointerup', stopIni); };
+        window.addEventListener('pointermove', moveIni); window.addEventListener('pointerup', stopIni);
+    }
+
+    canvas.onpointerdown = (e) => {
+        if(modo !== 'dibujar') return;
+        dibujando = true; const r = canvas.getBoundingClientRect();
+        startX = e.clientX - r.left; startY = e.clientY - r.top;
+        trazos.push({ pts: [{x: startX, y: startY}], end: {x: startX, y: startY}, cp: {x: startX, y: startY}, color: colorAct, size: grosorAct, estilo: estiloAct, efecto: efectoAct });
+    };
+    canvas.onpointermove = (e) => {
+        if(!dibujando) return;
+        const r = canvas.getBoundingClientRect();
+        const curX = e.clientX - r.left, curY = e.clientY - r.top;
+        let t = trazos[trazos.length-1];
+        if(estiloAct === 'libre') t.pts.push({x: curX, y: curY}); else t.end = {x: curX, y: curY};
+        render();
+    };
+    window.addEventListener('pointerup', () => {
+        if(!dibujando) return; dibujando = false;
+        let t = trazos[trazos.length-1];
+        if(t.estilo === 'curva') { 
+            t.cp = { x: (t.pts[0].x + t.end.x)/2, y: (t.pts[0].y + t.end.y)/2 - 50 };
+            tiradorCurva.style.display = 'block'; tiradorCurva.style.left = t.cp.x + "px"; tiradorCurva.style.top = t.cp.y + "px";
+            tiradorCurva.onpointerdown = (e) => {
+                e.stopPropagation();
+                const move = (ev) => { const r = canvas.getBoundingClientRect(); t.cp.x = ev.clientX - r.left; t.cp.y = ev.clientY - r.top; tiradorCurva.style.left = t.cp.x + "px"; tiradorCurva.style.top = t.cp.y + "px"; render(); };
+                const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
+                window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop);
+            }; 
+        }
+    });
+</script>
+</body>
+</html>

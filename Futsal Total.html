@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Futsal Total - Elite Performance</title>
+    <style>
+        :root {
+            --bg-gradient: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            --card-pizarra: linear-gradient(145deg, #1e3c72, #2a5298);
+            --card-stats: linear-gradient(145deg, #134e5e, #71b280);
+            --accent-gold: #ffcc00;
+            --text-white: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-white);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Botón Pantalla Completa (Misma estética que las otras APPs) */
+        .btn-header-top {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 48px;
+            height: 48px;
+            background: #222;
+            border: 2px solid #444;
+            color: white;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            z-index: 1000;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin: 0;
+            letter-spacing: 6px;
+            font-weight: 900;
+            text-transform: uppercase;
+            background: linear-gradient(to bottom, #fff, #ccc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header span { color: var(--accent-gold); -webkit-text-fill-color: var(--accent-gold); }
+
+        .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 40px;
+            width: 90%;
+            max-width: 1000px;
+        }
+
+        .card {
+            position: relative;
+            height: 380px;
+            border-radius: 30px;
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-decoration: none;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
+            background-size: cover;
+        }
+
+        .card.pizarra { background: var(--card-pizarra); }
+        .card.stats { background: var(--card-stats); }
+
+        .card:hover {
+            transform: translateY(-15px);
+            border-color: var(--accent-gold);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.6);
+        }
+
+        .tech-icon {
+            width: 140px;
+            height: 140px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover .tech-icon {
+            transform: scale(1.1);
+        }
+
+        .card h2 {
+            margin: 10px 0;
+            font-size: 1.8rem;
+            text-transform: uppercase;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .card p {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            max-width: 260px;
+            line-height: 1.4;
+            margin: 0;
+            font-weight: 300;
+        }
+
+        .badge {
+            position: absolute;
+            top: 20px;
+            right: 25px;
+            background: var(--accent-gold);
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        @media (max-width: 750px) {
+            .menu-grid { grid-template-columns: 1fr; gap: 20px; }
+            .card { height: 320px; }
+            .header h1 { font-size: 2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <button onclick="toggleFullScreen()" class="btn-header-top">⛶</button>
+
+    <div class="header">
+        <h1>FUTSAL <span>TOTAL</span></h1>
+        <p style="letter-spacing: 2px; opacity: 0.8; text-transform: uppercase; font-size: 0.9rem;">Pro Elite Coaching System</p>
+    </div>
+
+<div class="menu-grid">
+        <a href="Futsal_Pizarra.html" class="card pizarra" style="touch-action: manipulation;">
+            <div class="badge">Tactical Board</div>
+            <div class="tech-icon">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="10" y="10" width="80" height="80" rx="4" stroke="white" stroke-width="2"/>
+                    <path d="M10 50H90" stroke="white" stroke-width="2"/>
+                    <circle cx="50" cy="50" r="12" stroke="white" stroke-width="2"/>
+                    <path d="M30 10C30 25 70 25 70 10" stroke="white" stroke-width="2"/>
+                    <circle cx="35" cy="65" r="3" fill="var(--accent-gold)"/>
+                    <circle cx="65" cy="75" r="3" fill="var(--accent-gold)"/>
+                    <path d="M35 65Q50 60 62 72" stroke="var(--accent-gold)" stroke-width="2" stroke-dasharray="4 2"/>
+                    <path d="M60 68L65 75L58 75" fill="var(--accent-gold)"/>
+                </svg>
+            </div>
+            <h2>Futsal Pizarra</h2>
+            <p>Diseño avanzado de sistemas tácticos y entrenamientos.</p>
+        </a>
+
+        <a href="Futsal_Estadisticas.html" class="card stats" style="touch-action: manipulation;">
+            <div class="badge">Technical Data</div>
+            <div class="tech-icon">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect x="15" y="60" width="12" height="25" rx="2" fill="white" opacity="0.4"/>
+                    <rect x="35" y="40" width="12" height="45" rx="2" fill="white" opacity="0.7"/>
+                    <rect x="55" y="25" width="12" height="60" rx="2" fill="var(--accent-gold)"/>
+                    <rect x="75" y="50" width="12" height="35" rx="2" fill="white" opacity="0.5"/>
+                    <path d="M15 70L35 55L55 35L75 45" stroke="white" stroke-width="3" stroke-linecap="round"/>
+                    <circle cx="75" cy="45" r="4" fill="white"/>
+                    <path d="M10 90H90" stroke="white" stroke-width="2"/>
+                    <path d="M10 10V90" stroke="white" stroke-width="2"/>
+                </svg>
+            </div>
+            <h2>Estadísticas</h2>
+            <p>Análisis de rendimiento, scouting y control de cargas.</p>
+        </a>
+    </div>
+
+    <script>
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+    </script>
+</body>
+</html>
