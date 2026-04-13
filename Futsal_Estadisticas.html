@@ -331,7 +331,6 @@ function render(){
             d.className = 'jugador';
             d.id = 'jugador-pista-' + index;
             
-            // Estado visual inmediato
             d.style.border = (jugadorActivo === pos) ? "4px solid var(--led-verde)" : "2px solid #fff";
             d.style.left = pos.x + "%"; 
             d.style.top = pos.y + "%";
@@ -346,64 +345,55 @@ function render(){
                 d.appendChild(sn);
             }
             
-            // VARIABLES DE CONTROL CRÍTICAS
-            let startTime, startX, startY;
-            let haMovidoMucho = false;
+            let startX, startY, movido = false;
 
+            // 1. Al tocar: Marcamos posición y seleccionamos visualmente de inmediato
             d.onpointerdown = (e) => {
-                // No llamamos a render aquí para no destruir el objeto que se está tocando
                 e.stopPropagation();
-                startTime = Date.now();
                 startX = e.clientX;
                 startY = e.clientY;
-                haMovidoMucho = false;
+                movido = false;
                 arrastrando = true;
                 
-                // Selección VISUAL instantánea (sin borrar el div)
+                // Selección inmediata para banquillo (sin reconstruir el HTML)
+                jugadorActivo = pos;
                 document.querySelectorAll('.jugador').forEach(j => j.style.border = "2px solid #fff");
                 d.style.border = "4px solid var(--led-verde)";
-                jugadorActivo = pos; 
             };
 
+            // 2. Al mover: Solo si el desplazamiento es real
             d.onpointermove = (e) => {
                 if (!arrastrando || jugadorActivo !== pos) return;
                 
-                const diffX = Math.abs(e.clientX - startX);
-                const diffY = Math.abs(e.clientY - startY);
+                const dx = Math.abs(e.clientX - startX);
+                const dy = Math.abs(e.clientY - startY);
 
-                // Si se mueve más de 15 píxeles, confirmamos que es un ARRASTRE
-                if (diffX > 15 || diffY > 15) {
-                    haMovidoMucho = true;
+                if (dx > 10 || dy > 10) {
+                    movido = true;
                     const r = document.getElementById('pista').getBoundingClientRect();
                     pos.x = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
                     pos.y = Math.max(4, Math.min(96, ((e.clientY - r.top) / r.height) * 100));
-                    
                     d.style.left = pos.x + "%";
                     d.style.top = pos.y + "%";
                 }
             };
 
+            // 3. Al soltar: Decidimos si fue click de acción o fin de arrastre
             d.onpointerup = (e) => {
                 if (!arrastrando) return;
-                const duration = Date.now() - startTime;
                 arrastrando = false;
 
-                // LÓGICA DE DECISIÓN:
-                // Si ha durado poco tiempo (< 300ms) Y no se ha movido casi nada (>15px), ES UN TOQUE.
-                if (!haMovidoMucho && duration < 350) {
+                if (!movido) {
+                    // Es un toque estático: Abrir acciones o stats
                     if (modoActual === 'acciones' && pos.asignado) {
                         abrirMenuAcciones(e.clientX, e.clientY);
                     } else if (modoActual === 'stats' && pos.asignado) {
                         mostrarEstadisticaJugador(pos.asignado);
                     }
                 }
-                
-                // Redibujamos solo al final para limpiar banquillos o consolidar posición
+                // Redibujamos para actualizar banquillos y fijar posiciones
                 render();
             };
-
-            // Seguridad por si el dedo sale de la pantalla
-            d.onpointercancel = () => { arrastrando = false; render(); };
             
             capa.appendChild(d);
         });
@@ -417,6 +407,8 @@ function render(){
                 s.innerText = `${j.num}.${j.nombre}`;
                 
                 s.onpointerup = (e) => {
+                    // IMPORTANTE: preventDefault para evitar que el click traspase al fondo
+                    e.preventDefault();
                     if(jugadorActivo && jugadorActivo.local === j.local) {
                         if(jugadorActivo.asignado) jugadorActivo.asignado.enPista = false;
                         jugadorActivo.asignado = j; 
