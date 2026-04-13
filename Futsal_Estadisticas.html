@@ -326,11 +326,13 @@ function render(){
         const bL = document.getElementById('banquillo-local'); bL.innerHTML = '';
         const bV = document.getElementById('banquillo-rival'); bV.innerHTML = '';
 
-        posicionesPista.forEach(pos => {
+        posicionesPista.forEach((pos, index) => {
             const d = document.createElement('div');
             d.className = 'jugador';
+            d.id = 'jugador-pista-' + index; // ID único para control directo
             
-            if(jugadorActivo === pos) d.style.border = "4px solid var(--led-verde)";
+            // Estado inicial del borde
+            d.style.border = (jugadorActivo === pos) ? "4px solid var(--led-verde)" : "2px solid #fff";
             
             d.style.left = pos.x + "%"; 
             d.style.top = pos.y + "%";
@@ -347,47 +349,59 @@ function render(){
             
             let iniX, iniY, movido = false;
 
+            // --- NUEVA LÓGICA DE ALTA PRECISIÓN ---
             d.onpointerdown = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 e.target.setPointerCapture(e.pointerId);
+                
                 iniX = e.clientX; 
                 iniY = e.clientY;
                 movido = false;
-                jugadorActivo = pos;
                 arrastrando = true;
+                jugadorActivo = pos;
                 
-                // Cambio visual rápido sin recargar todo
-                const todos = document.querySelectorAll('.jugador');
-                todos.forEach((div, idx) => {
-                    div.style.border = (posicionesPista[idx] === pos) ? "4px solid var(--led-verde)" : "2px solid #fff";
-                });
+                // CAMBIO VISUAL DIRECTO (Sin renderizar de nuevo)
+                // Esto hace que se quede en verde al INSTANTE y no se suelte
+                document.querySelectorAll('.jugador').forEach(j => j.style.border = "2px solid #fff");
+                d.style.border = "4px solid var(--led-verde)";
             };
 
             d.onpointermove = (e) => {
                 if (!arrastrando || jugadorActivo !== pos) return;
-                if (Math.hypot(e.clientX - iniX, e.clientY - iniY) > 7) {
+                
+                let dist = Math.hypot(e.clientX - iniX, e.clientY - iniY);
+                if (dist > 8) { // Margen para distinguir toque de arrastre
                     movido = true;
                     const r = document.getElementById('pista').getBoundingClientRect();
                     pos.x = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
                     pos.y = Math.max(4, Math.min(96, ((e.clientY - r.top) / r.height) * 100));
+                    
                     d.style.left = pos.x + "%";
                     d.style.top = pos.y + "%";
                 }
             };
 
             d.onpointerup = (e) => {
+                if (!arrastrando) return;
                 arrastrando = false;
                 e.target.releasePointerCapture(e.pointerId);
+                
                 if (!movido) { 
-                    if(modoActual === 'acciones' && pos.asignado) abrirMenuAcciones(e.clientX, e.clientY);
-                    else if(modoActual === 'stats' && pos.asignado) mostrarEstadisticaJugador(pos.asignado);
+                    // Si es un TOQUE limpio
+                    if(modoActual === 'acciones' && pos.asignado) {
+                        abrirMenuAcciones(e.clientX, e.clientY);
+                    } else if(modoActual === 'stats' && pos.asignado) {
+                        mostrarEstadisticaJugador(pos.asignado);
+                    }
                 }
+                // Solo redibujamos al SOLTAR para consolidar cambios
                 render(); 
             };
             capa.appendChild(d);
         });
 
+        // Dibujar banquillos
         [...eqL, ...eqV].forEach(j => {
             if(!j.enPista) {
                 const s = document.createElement('div');
