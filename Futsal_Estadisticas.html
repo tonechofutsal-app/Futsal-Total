@@ -329,11 +329,10 @@ function render(){
         posicionesPista.forEach((pos, index) => {
             const d = document.createElement('div');
             d.className = 'jugador';
-            d.id = 'jugador-pista-' + index; // ID único para control directo
+            d.id = 'jugador-pista-' + index;
             
-            // Estado inicial del borde
+            // Estado visual inmediato
             d.style.border = (jugadorActivo === pos) ? "4px solid var(--led-verde)" : "2px solid #fff";
-            
             d.style.left = pos.x + "%"; 
             d.style.top = pos.y + "%";
             d.style.backgroundColor = pos.portero ? 'var(--portero-color)' : (pos.local ? '#FFD600' : '#D50000');
@@ -347,32 +346,34 @@ function render(){
                 d.appendChild(sn);
             }
             
-            let iniX, iniY, movido = false;
+            // VARIABLES DE CONTROL CRÍTICAS
+            let startTime, startX, startY;
+            let haMovidoMucho = false;
 
-            // --- NUEVA LÓGICA DE ALTA PRECISIÓN ---
             d.onpointerdown = (e) => {
-                e.preventDefault();
+                // No llamamos a render aquí para no destruir el objeto que se está tocando
                 e.stopPropagation();
-                e.target.setPointerCapture(e.pointerId);
-                
-                iniX = e.clientX; 
-                iniY = e.clientY;
-                movido = false;
+                startTime = Date.now();
+                startX = e.clientX;
+                startY = e.clientY;
+                haMovidoMucho = false;
                 arrastrando = true;
-                jugadorActivo = pos;
                 
-                // CAMBIO VISUAL DIRECTO (Sin renderizar de nuevo)
-                // Esto hace que se quede en verde al INSTANTE y no se suelte
+                // Selección VISUAL instantánea (sin borrar el div)
                 document.querySelectorAll('.jugador').forEach(j => j.style.border = "2px solid #fff");
                 d.style.border = "4px solid var(--led-verde)";
+                jugadorActivo = pos; 
             };
 
             d.onpointermove = (e) => {
                 if (!arrastrando || jugadorActivo !== pos) return;
                 
-                let dist = Math.hypot(e.clientX - iniX, e.clientY - iniY);
-                if (dist > 8) { // Margen para distinguir toque de arrastre
-                    movido = true;
+                const diffX = Math.abs(e.clientX - startX);
+                const diffY = Math.abs(e.clientY - startY);
+
+                // Si se mueve más de 15 píxeles, confirmamos que es un ARRASTRE
+                if (diffX > 15 || diffY > 15) {
+                    haMovidoMucho = true;
                     const r = document.getElementById('pista').getBoundingClientRect();
                     pos.x = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
                     pos.y = Math.max(4, Math.min(96, ((e.clientY - r.top) / r.height) * 100));
@@ -384,20 +385,26 @@ function render(){
 
             d.onpointerup = (e) => {
                 if (!arrastrando) return;
+                const duration = Date.now() - startTime;
                 arrastrando = false;
-                e.target.releasePointerCapture(e.pointerId);
-                
-                if (!movido) { 
-                    // Si es un TOQUE limpio
-                    if(modoActual === 'acciones' && pos.asignado) {
+
+                // LÓGICA DE DECISIÓN:
+                // Si ha durado poco tiempo (< 300ms) Y no se ha movido casi nada (>15px), ES UN TOQUE.
+                if (!haMovidoMucho && duration < 350) {
+                    if (modoActual === 'acciones' && pos.asignado) {
                         abrirMenuAcciones(e.clientX, e.clientY);
-                    } else if(modoActual === 'stats' && pos.asignado) {
+                    } else if (modoActual === 'stats' && pos.asignado) {
                         mostrarEstadisticaJugador(pos.asignado);
                     }
                 }
-                // Solo redibujamos al SOLTAR para consolidar cambios
-                render(); 
+                
+                // Redibujamos solo al final para limpiar banquillos o consolidar posición
+                render();
             };
+
+            // Seguridad por si el dedo sale de la pantalla
+            d.onpointercancel = () => { arrastrando = false; render(); };
+            
             capa.appendChild(d);
         });
 
@@ -422,12 +429,6 @@ function render(){
             }
         });
         actualizarUIBotones();
-    }
-    function actualizarUIBotones() {
-        document.getElementById('btn-acciones').style.border = (modoActual === 'acciones') ? "4px solid #FFEB3B" : "none";
-        document.getElementById('btn-timeout').style.border = (modoActual === 'timeout') ? "4px solid #FFEB3B" : "none";
-        document.getElementById('btn-stats').style.border = (modoActual === 'stats') ? "4px solid #FFEB3B" : "none";
-        document.getElementById('btn-play').style.border = corriendo ? "4px solid #FFEB3B" : "none";
     }
 
     function deseleccionarJugador() { jugadorActivo = null; render(); }
