@@ -417,8 +417,26 @@ function render(){
                 (j.local ? bL : bV).appendChild(s);
             }
         });
-        actualizarUIBotones();
+       function actualizarUIBotones() {
+    // 1. Buscamos el botón de acciones
+    const btnAcciones = document.getElementById('btn-acciones');
+    
+    // 2. Si el modo es 'acciones', le ponemos el borde BLANCO y sombra
+    if (modoActual === 'acciones') {
+        btnAcciones.style.border = "4px solid #FFFFFF";
+        btnAcciones.style.boxShadow = "0 0 10px #FFFFFF";
+    } else {
+        btnAcciones.style.border = "none";
+        btnAcciones.style.boxShadow = "none";
     }
+
+    // 3. Otros botones (Timeout, Stats, Play)
+    document.getElementById('btn-timeout').style.border = (modoActual === 'timeout') ? "4px solid #FFEB3B" : "none";
+    document.getElementById('btn-stats').style.border = (modoActual === 'stats') ? "4px solid #FFEB3B" : "none";
+    
+    const btnPlay = document.getElementById('btn-play');
+    if (btnPlay) btnPlay.style.border = corriendo ? "4px solid #FFEB3B" : "none";
+}
 
     function deseleccionarJugador() { jugadorActivo = null; render(); }
     
@@ -655,6 +673,7 @@ function render(){
     }
 
     cargarInputsConfig();
+	render();
 </script>
 </body>
 </html>
