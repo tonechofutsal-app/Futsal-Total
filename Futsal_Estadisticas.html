@@ -321,92 +321,94 @@ document.addEventListener('contextmenu', event => event.preventDefault());
         render();
     }
 
-    function render(){
-    const capa = document.getElementById('capa-jugadores'); capa.innerHTML = '';
-    const bL = document.getElementById('banquillo-local'); bL.innerHTML = '';
-    const bV = document.getElementById('banquillo-rival'); bV.innerHTML = '';
+function render(){
+        const capa = document.getElementById('capa-jugadores'); capa.innerHTML = '';
+        const bL = document.getElementById('banquillo-local'); bL.innerHTML = '';
+        const bV = document.getElementById('banquillo-rival'); bV.innerHTML = '';
 
-    posicionesPista.forEach(pos => {
-        const d = document.createElement('div');
-        d.className = 'jugador';
-        if(jugadorActivo === pos) d.style.border = "4px solid var(--led-verde)";
-        d.style.left = pos.x + "%"; d.style.top = pos.y + "%";
-        d.style.backgroundColor = pos.portero ? 'var(--portero-color)' : (pos.local ? '#FFD600' : '#D50000');
-        d.style.color = pos.local ? '#000' : '#fff';
-        d.innerHTML = pos.asignado ? pos.asignado.num : "";
-        if(pos.asignado) {
-            const sn = document.createElement('span'); sn.className = 'nombre-jugador-pista';
-            sn.innerText = pos.asignado.nombre; d.appendChild(sn);
-        }
-        
-        // --- CONTROL TÁCTIL MEJORADO ---
-        let iniX, iniY;
-        let movido = false;
-
-        d.onpointerdown = (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            e.target.setPointerCapture(e.pointerId);
-            iniX = e.clientX; iniY = e.clientY;
-            movido = false;
-            jugadorActivo = pos;
-            arrastrando = true;
-            render();
-        };
-
-      d.onpointermove = (e) => {
-            if (!arrastrando) return;
+        posicionesPista.forEach(pos => {
+            const d = document.createElement('div');
+            d.className = 'jugador';
             
-            // 1. Detectamos si hay movimiento real
-            if (Math.hypot(e.clientX - iniX, e.clientY - iniY) > 10) movido = true;
-
-            // 2. CALCULAMOS LA NUEVA POSICIÓN (Esto es lo que te faltaba)
-            const r = document.getElementById('campo').getBoundingClientRect();
-            let x = ((e.clientX - r.left) / r.width) * 100;
-            let y = ((e.clientY - r.top) / r.height) * 100;
+            if(jugadorActivo === pos) d.style.border = "4px solid var(--led-verde)";
             
-            // 3. Aplicamos la posición al jugador activo
-            jugadorActivo.x = Math.max(0, Math.min(100, x));
-            jugadorActivo.y = Math.max(0, Math.min(100, y));
+            d.style.left = pos.x + "%"; 
+            d.style.top = pos.y + "%";
+            d.style.backgroundColor = pos.portero ? 'var(--portero-color)' : (pos.local ? '#FFD600' : '#D50000');
+            d.style.color = pos.local ? '#000' : '#fff';
+            d.innerHTML = pos.asignado ? pos.asignado.num : "";
             
-            render(); // Dibujamos de nuevo para que el círculo se mueva
-        };
-
-        d.onpointerup = (e) => {
-            arrastrando = false;
-            if (!movido) { // Si es un toque rápido
-                if(modoActual === 'acciones' && pos.asignado) abrirMenuAcciones(e.clientX, e.clientY);
-                else if(modoActual === 'stats' && pos.asignado) mostrarEstadisticaJugador(pos.asignado);
+            if(pos.asignado) {
+                const sn = document.createElement('span'); 
+                sn.className = 'nombre-jugador-pista';
+                sn.innerText = pos.asignado.nombre; 
+                d.appendChild(sn);
             }
-            render();
-        };
-        capa.appendChild(d);
-    });
-
-    [...eqL, ...eqV].forEach(j => {
-        if(!j.enPista) {
-            const s = document.createElement('div');
-            s.className = 'jugador-item-banquillo'; // Usaremos clase para el CSS
-            s.style.cssText = `padding:12px; background:#222; margin-bottom:5px; border-radius:8px; cursor:pointer; font-size:0.85rem; border-left:5px solid ${j.local?'#FFD600':'#D50000'}`;
-            s.innerText = `${j.num}.${j.nombre}`;
             
-            s.onpointerup = (e) => {
+            let iniX, iniY, movido = false;
+
+            d.onpointerdown = (e) => {
                 e.preventDefault();
-                if(jugadorActivo && jugadorActivo.local === j.local) {
-                    if(jugadorActivo.asignado) jugadorActivo.asignado.enPista = false;
-                    jugadorActivo.asignado = j; j.enPista = true; jugadorActivo = null;
-                    render();
+                e.stopPropagation();
+                e.target.setPointerCapture(e.pointerId);
+                iniX = e.clientX; 
+                iniY = e.clientY;
+                movido = false;
+                jugadorActivo = pos;
+                arrastrando = true;
+                
+                // Cambio visual rápido sin recargar todo
+                const todos = document.querySelectorAll('.jugador');
+                todos.forEach((div, idx) => {
+                    div.style.border = (posicionesPista[idx] === pos) ? "4px solid var(--led-verde)" : "2px solid #fff";
+                });
+            };
+
+            d.onpointermove = (e) => {
+                if (!arrastrando || jugadorActivo !== pos) return;
+                if (Math.hypot(e.clientX - iniX, e.clientY - iniY) > 7) {
+                    movido = true;
+                    const r = document.getElementById('pista').getBoundingClientRect();
+                    pos.x = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
+                    pos.y = Math.max(4, Math.min(96, ((e.clientY - r.top) / r.height) * 100));
+                    d.style.left = pos.x + "%";
+                    d.style.top = pos.y + "%";
                 }
             };
-            (j.local ? bL : bV).appendChild(s);
-        }
-    });
-	
-	
-cargarInputsConfig();
+
+            d.onpointerup = (e) => {
+                arrastrando = false;
+                e.target.releasePointerCapture(e.pointerId);
+                if (!movido) { 
+                    if(modoActual === 'acciones' && pos.asignado) abrirMenuAcciones(e.clientX, e.clientY);
+                    else if(modoActual === 'stats' && pos.asignado) mostrarEstadisticaJugador(pos.asignado);
+                }
+                render(); 
+            };
+            capa.appendChild(d);
+        });
+
+        [...eqL, ...eqV].forEach(j => {
+            if(!j.enPista) {
+                const s = document.createElement('div');
+                s.className = 'jugador-item-banquillo';
+                s.style.cssText = `padding:12px; background:#222; margin-bottom:5px; border-radius:8px; cursor:pointer; font-size:0.85rem; border-left:5px solid ${j.local?'#FFD600':'#D50000'}`;
+                s.innerText = `${j.num}.${j.nombre}`;
+                
+                s.onpointerup = (e) => {
+                    if(jugadorActivo && jugadorActivo.local === j.local) {
+                        if(jugadorActivo.asignado) jugadorActivo.asignado.enPista = false;
+                        jugadorActivo.asignado = j; 
+                        j.enPista = true; 
+                        jugadorActivo = null; 
+                        render();
+                    }
+                };
+                (j.local ? bL : bV).appendChild(s);
+            }
+        });
         actualizarUIBotones();
     }
-
     function actualizarUIBotones() {
         document.getElementById('btn-acciones').style.border = (modoActual === 'acciones') ? "4px solid #FFEB3B" : "none";
         document.getElementById('btn-timeout').style.border = (modoActual === 'timeout') ? "4px solid #FFEB3B" : "none";
