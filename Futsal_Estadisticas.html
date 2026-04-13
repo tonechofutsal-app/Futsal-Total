@@ -110,7 +110,7 @@
         .porteria { position: absolute; top: 40%; height: 20%; width: 6px; background: var(--linea-porteria); z-index: 2; }
     </style>
 </head>
-<body onclick="activarKeepAwake()">
+<body onclick="activarKeepAwake()" oncontextmenu="return false;">
 
 <video id="keep-awake-video" loop muted playsinline style="display:none;">
     <source src="data:video/mp4;base64,AAAAIGZ0eXBpc29tAAACAGlzb21pc292bXA0AAADGm1vb3YAAABsbXZoZAAAAADbe6vA23urwAAAA+gAAAAAAAEAAAEAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIAAABidHJhazAAAAZ0a2hkAAAAB9t7q8Dbe6vAAAAAAQAAAAAAA+gAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAUAAAAFAAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAAPoAAAAAAABAAAAAAHibWRpYQAAACBtZGhkAAAAANt7q8Dbe6vAAAAAAUAAAAAAAABVAAAAAAAhaG1scgAAAAAAAAAAdmlkZQAAAAAAAAAAAAAAAFZpZGVvSGFuZGxlcgAAAAG5bWluZgAAABZ2bWhkAAAAAQAAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAxtZWRpYQAAAAEAAAB6c3RibAAAAGZzdHNkAAAAAAAAAAEAAABWavBjMP8AAAAAAAgAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAUABQAAAAAABhdmMxAQAAAAL/AAAAFmF2Y0MBQAL/AAL/AAAAAAAIAAAD6AAAAfQAAABMc3R0cwAAAAAAAAABAAAAAQAAAfQAAABMc3RzYwAAAAAAAAABAAAAAQAAAAEAAAABAAAAFHN0c3oAAAAAAAAAAAABAAAB9AAAABRzdGNvAAAAAAAAAAEAAAA4AAAAYnVkdGEAAABabWV0YQAAAAAAAAAhaGRscgAAAAAAAAAAbWRpdir6AAAAYXBwbAAAAClpbHN0AAAAYal0b28AAABhZGF0YQAAAAEAAAAAAAAAAAAAAABmcmVlAAAAG21kYXQAAAAVAAAAAf///+7u7u7u7u7u7u7vAAAAFv///+7u7u7u7u7u7u7v">
@@ -215,11 +215,13 @@
 </div>
 
 <script>
-    let corriendo = false, tiempo = 1200, modoActual = 'movimiento', arrastrando = false;
+    let corriendo = false, tiempo = 1200, modoActual = 'movimiento', arrastrando = false;	
     let eqL = [], eqV = [], jugadorActivo = null;
     let golesL = 0, golesV = 0, faltasL_P1 = 0, faltasV_P1 = 0, faltasL_P2 = 0, faltasV_P2 = 0, parteActual = 1;
     let historialTiemposMuertos = [];
     let wakeLock = null;
+	// Bloqueo total del menú contextual para evitar "Descargar imagen"
+document.addEventListener('contextmenu', event => event.preventDefault());
 
     async function activarKeepAwake() {
         if ('wakeLock' in navigator) {
@@ -255,18 +257,7 @@
         { id:'PV5', x:55, y:80, local:false, portero:false, asignado:null }
     ];
 
-    /* CORRECCIÓN PARA TABLET: Listener de movimiento universal (Pointer) */
-    window.addEventListener('pointermove', (e) => {
-        if (arrastrando && jugadorActivo && modoActual === 'movimiento') {
-            const rect = document.getElementById('pista').getBoundingClientRect();
-            jugadorActivo.x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
-            jugadorActivo.y = Math.max(4, Math.min(96, ((e.clientY - rect.top) / rect.height) * 100));
-            render();
-        }
-    });
-
-    window.addEventListener('pointerup', () => { if (arrastrando) { arrastrando = false; guardarSesion(); } });
-
+    
     function volverAConfig() {
         document.getElementById('interfaz-partido').style.display = 'none';
         document.getElementById('pantalla-config').style.display = 'flex';
@@ -330,51 +321,86 @@
     }
 
     function render(){
-        const capa = document.getElementById('capa-jugadores'); capa.innerHTML = '';
-        const bL = document.getElementById('banquillo-local'); bL.innerHTML = '';
-        const bV = document.getElementById('banquillo-rival'); bV.innerHTML = '';
+    const capa = document.getElementById('capa-jugadores'); capa.innerHTML = '';
+    const bL = document.getElementById('banquillo-local'); bL.innerHTML = '';
+    const bV = document.getElementById('banquillo-rival'); bV.innerHTML = '';
 
-        posicionesPista.forEach(pos => {
-            const d = document.createElement('div');
-            d.className = 'jugador';
-            if(jugadorActivo === pos) d.style.border = "4px solid var(--led-verde)";
-            d.style.left = pos.x + "%"; d.style.top = pos.y + "%";
-            d.style.backgroundColor = pos.portero ? 'var(--portero-color)' : (pos.local ? '#FFD600' : '#D50000');
-            d.style.color = pos.local ? '#000' : '#fff';
-            d.innerHTML = pos.asignado ? pos.asignado.num : "";
-            if(pos.asignado) {
-                const sn = document.createElement('span'); sn.className = 'nombre-jugador-pista';
-                sn.innerText = pos.asignado.nombre; d.appendChild(sn);
-            }
+    posicionesPista.forEach(pos => {
+        const d = document.createElement('div');
+        d.className = 'jugador';
+        if(jugadorActivo === pos) d.style.border = "4px solid var(--led-verde)";
+        d.style.left = pos.x + "%"; d.style.top = pos.y + "%";
+        d.style.backgroundColor = pos.portero ? 'var(--portero-color)' : (pos.local ? '#FFD600' : '#D50000');
+        d.style.color = pos.local ? '#000' : '#fff';
+        d.innerHTML = pos.asignado ? pos.asignado.num : "";
+        if(pos.asignado) {
+            const sn = document.createElement('span'); sn.className = 'nombre-jugador-pista';
+            sn.innerText = pos.asignado.nombre; d.appendChild(sn);
+        }
+        
+        // --- CONTROL TÁCTIL MEJORADO ---
+        let iniX, iniY;
+        let movido = false;
+
+        d.onpointerdown = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            e.target.setPointerCapture(e.pointerId);
+            iniX = e.clientX; iniY = e.clientY;
+            movido = false;
+            jugadorActivo = pos;
+            arrastrando = true;
+            render();
+        };
+
+      d.onpointermove = (e) => {
+            if (!arrastrando) return;
             
-            /* CORRECCIÓN PARA TABLET: Activación por PointerDown */
-            d.onpointerdown = (e) => {
-			e.preventDefault(); // <--- AÑADE ESTA LÍNEA AQUÍ
-                e.stopPropagation(); e.target.setPointerCapture(e.pointerId);
-                jugadorActivo = pos; arrastrando = true;
-                if(modoActual === 'acciones' && pos.asignado) abrirMenuAcciones(e.clientX, e.clientY);
-                if(modoActual === 'stats' && pos.asignado) { mostrarEstadisticaJugador(pos.asignado); }
-                render();
-            };
-            capa.appendChild(d);
-        });
+            // 1. Detectamos si hay movimiento real
+            if (Math.hypot(e.clientX - iniX, e.clientY - iniY) > 10) movido = true;
 
-        [...eqL, ...eqV].forEach(j => {
-            if(!j.enPista) {
-                const s = document.createElement('div');
-                s.style.cssText = `padding:12px; background:#222; margin-bottom:5px; border-radius:8px; cursor:pointer; font-size:0.85rem; border-left:5px solid ${j.local?'#FFD600':'#D50000'}`;
-                s.innerText = `${j.num}.${j.nombre}`;
-                s.onpointerdown = (e) => {
-				e.preventDefault();
-                    if(jugadorActivo && jugadorActivo.local === j.local) {
-                        if(jugadorActivo.asignado) jugadorActivo.asignado.enPista = false;
-                        jugadorActivo.asignado = j; j.enPista = true; jugadorActivo = null;
-                        render();
-                    }
-                };
-                (j.local ? bL : bV).appendChild(s);
+            // 2. CALCULAMOS LA NUEVA POSICIÓN (Esto es lo que te faltaba)
+            const r = document.getElementById('campo').getBoundingClientRect();
+            let x = ((e.clientX - r.left) / r.width) * 100;
+            let y = ((e.clientY - r.top) / r.height) * 100;
+            
+            // 3. Aplicamos la posición al jugador activo
+            jugadorActivo.x = Math.max(0, Math.min(100, x));
+            jugadorActivo.y = Math.max(0, Math.min(100, y));
+            
+            render(); // Dibujamos de nuevo para que el círculo se mueva
+        };
+
+        d.onpointerup = (e) => {
+            arrastrando = false;
+            if (!movido) { // Si es un toque rápido
+                if(modoActual === 'acciones' && pos.asignado) abrirMenuAcciones(e.clientX, e.clientY);
+                else if(modoActual === 'stats' && pos.asignado) mostrarEstadisticaJugador(pos.asignado);
             }
-        });
+            render();
+        };
+        capa.appendChild(d);
+    });
+
+    [...eqL, ...eqV].forEach(j => {
+        if(!j.enPista) {
+            const s = document.createElement('div');
+            s.className = 'jugador-item-banquillo'; // Usaremos clase para el CSS
+            s.style.cssText = `padding:12px; background:#222; margin-bottom:5px; border-radius:8px; cursor:pointer; font-size:0.85rem; border-left:5px solid ${j.local?'#FFD600':'#D50000'}`;
+            s.innerText = `${j.num}.${j.nombre}`;
+            
+            s.onpointerup = (e) => {
+                e.preventDefault();
+                if(jugadorActivo && jugadorActivo.local === j.local) {
+                    if(jugadorActivo.asignado) jugadorActivo.asignado.enPista = false;
+                    jugadorActivo.asignado = j; j.enPista = true; jugadorActivo = null;
+                    render();
+                }
+            };
+            (j.local ? bL : bV).appendChild(s);
+        }
+    });
+}
 
         actualizarUIBotones();
     }
