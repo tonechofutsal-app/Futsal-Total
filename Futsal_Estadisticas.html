@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, touch-action=manipulation">
     <title>Futsal Pro - v19.2</title>
     <style>
         :root { 
@@ -82,7 +82,7 @@
         #cronometro { font-size: 5rem; font-family: 'Courier New', monospace; color: var(--led-verde); font-weight: bold; line-height: 0.8; }
         
         .cuerpo-app { display: flex; flex-grow: 1; overflow: hidden; background: #111; position: relative; }
-        .col-banquillo { width: 150px; background: #0a0a0a; padding: 5px; overflow-y: auto; border: 1px solid #222; flex-shrink: 0; }
+        .col-banquillo { width: 150px; background: #0a0a0a; padding: 5px; overflow-y: auto; border: 1px solid #222; flex-shrink: 0; touch-action: none; }
         .seccion-pista { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 5px; overflow: hidden; }
         .campo { position: relative; height: 95%; aspect-ratio: 2 / 1; background: var(--pista-azul); border: 3px solid var(--linea); touch-action: none; }
         
@@ -349,6 +349,7 @@
             
             /* CORRECCIÓN PARA TABLET: Activación por PointerDown */
             d.onpointerdown = (e) => {
+			e.preventDefault(); // <--- AÑADE ESTA LÍNEA AQUÍ
                 e.stopPropagation(); e.target.setPointerCapture(e.pointerId);
                 jugadorActivo = pos; arrastrando = true;
                 if(modoActual === 'acciones' && pos.asignado) abrirMenuAcciones(e.clientX, e.clientY);
@@ -363,7 +364,8 @@
                 const s = document.createElement('div');
                 s.style.cssText = `padding:12px; background:#222; margin-bottom:5px; border-radius:8px; cursor:pointer; font-size:0.85rem; border-left:5px solid ${j.local?'#FFD600':'#D50000'}`;
                 s.innerText = `${j.num}.${j.nombre}`;
-                s.onclick = () => {
+                s.onpointerdown = (e) => {
+				e.preventDefault();
                     if(jugadorActivo && jugadorActivo.local === j.local) {
                         if(jugadorActivo.asignado) jugadorActivo.asignado.enPista = false;
                         jugadorActivo.asignado = j; j.enPista = true; jugadorActivo = null;
