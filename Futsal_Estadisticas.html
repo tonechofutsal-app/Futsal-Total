@@ -601,6 +601,70 @@ function render(){
         localStorage.setItem('futsal_ultima_sesion', JSON.stringify(data));
         actualizarTodosLosDatalists();
     }
+	function abrirConfig(){
+    document.getElementById('modal-config').style.display = 'flex';
+    const listaL = document.getElementById('lista-config-local'); listaL.innerHTML = '';
+    const listaV = document.getElementById('lista-config-rival'); listaV.innerHTML = '';
+    
+    const crearItem = (j, lista) => {
+        const d = document.createElement('div');
+        d.className = 'config-item';
+        d.innerHTML = `
+            <input type="number" value="${j.num}" style="width:40px" onchange="actualizarDato('${j.local?'L':'V'}', ${j.id}, 'num', this.value)">
+            <input type="text" value="${j.nombre}" style="flex:1" onchange="actualizarDato('${j.local?'L':'V'}', ${j.id}, 'nombre', this.value)">
+        `;
+        lista.appendChild(d);
+    };
+    eqL.forEach(j => crearItem(j, listaL));
+    eqV.forEach(j => crearItem(j, listaV));
+}
+
+function cerrarConfig(){
+    document.getElementById('modal-config').style.display = 'none';
+    render();
+}
+
+function actualizarDato(eq, id, campo, valor){
+    const lista = (eq === 'L') ? eqL : eqV;
+    const j = lista.find(x => x.id === id);
+    if(j) {
+        if(campo === 'num') j.num = valor;
+        else j.nombre = valor;
+    }
+}
+
+function guardarConfig(){
+    const datos = {
+        nomL: document.getElementById('input-nomL').value,
+        nomV: document.getElementById('input-nomV').value,
+        eqL: eqL.map(j => ({id:j.id, num:j.num, nombre:j.nombre})),
+        eqV: eqV.map(j => ({id:j.id, num:j.num, nombre:j.nombre}))
+    };
+    localStorage.setItem('futsal_config_v19', JSON.stringify(datos));
+    alert("Configuración guardada correctamente");
+    cargarInputsConfig();
+    render();
+}
+
+function cargarInputsConfig(){
+    const storage = localStorage.getItem('futsal_config_v19');
+    if(storage){
+        const datos = JSON.parse(storage);
+        document.getElementById('input-nomL').value = datos.nomL || "LOCAL";
+        document.getElementById('input-nomV').value = datos.nomV || "RIVAL";
+        nomL = datos.nomL || "LOCAL";
+        nomV = datos.nomV || "RIVAL";
+        
+        datos.eqL.forEach(saved => {
+            let j = eqL.find(x => x.id === saved.id);
+            if(j) { j.num = saved.num; j.nombre = saved.nombre; }
+        });
+        datos.eqV.forEach(saved => {
+            let j = eqV.find(x => x.id === saved.id);
+            if(j) { j.num = saved.num; j.nombre = saved.nombre; }
+        });
+    }
+}
 
     function cargarInputsConfig() {
         const iL = document.getElementById('inputs-local'), iV = document.getElementById('inputs-rival');
