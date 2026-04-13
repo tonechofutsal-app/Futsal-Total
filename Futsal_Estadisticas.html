@@ -20,10 +20,9 @@
             margin: 0; background: #000; color: white; 
             height: 100svh; width: 100vw; overflow: hidden; 
             position: fixed; overscroll-behavior: none;
-            touch-action: none; /* Corrección para tablet */
+            touch-action: none;
         }
 
-        /* --- NUEVO GRUPO DE BOTONES SUPERIORES --- */
         .controles-navegacion {
             position: fixed;
             top: 15px;
@@ -129,7 +128,6 @@
 <div id="pantalla-config">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
         <h2 style="margin:0; color:var(--led-verde)">CONFIGURACIÓN</h2>
-        <div style="width:110px"></div>
     </div>
     
     <div style="margin-bottom: 15px;">
@@ -171,7 +169,6 @@
                 <div id="f-v" style="font-size:0.9rem; font-weight:bold">F: 0</div>
             </div>
         </div>
-        <div style="width:110px"></div>
     </div>
 
     <div class="cuerpo-app">
@@ -202,7 +199,7 @@
 
 <div id="modal-stats">
     <div id="contenido-stats"></div>
-    <button onclick="document.getElementById('modal-stats').style.display='none'; document.getElementById('modal-stats').style.pointerEvents='none';" style="width:100%; padding:15px; background:var(--led-rojo); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px; position:relative; z-index:20000;">CERRAR</button>
+    <button onclick="document.getElementById('modal-stats').style.display='none'; document.getElementById('modal-stats').style.pointerEvents='none';" style="width:100%; padding:15px; background:var(--led-rojo); color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer; margin-top:10px;">CERRAR</button>
 </div>
 
 <div id="menu-acciones">
@@ -221,8 +218,7 @@
     let historialTiemposMuertos = [];
     let wakeLock = null;
 	
-	// Bloqueo total del menú contextual para evitar "Descargar imagen"
-document.addEventListener('contextmenu', event => event.preventDefault());
+    document.addEventListener('contextmenu', event => event.preventDefault());
 
     async function activarKeepAwake() {
         if ('wakeLock' in navigator) {
@@ -258,7 +254,6 @@ document.addEventListener('contextmenu', event => event.preventDefault());
         { id:'PV5', x:55, y:80, local:false, portero:false, asignado:null }
     ];
 
-    
     function volverAConfig() {
         document.getElementById('interfaz-partido').style.display = 'none';
         document.getElementById('pantalla-config').style.display = 'flex';
@@ -321,19 +316,19 @@ document.addEventListener('contextmenu', event => event.preventDefault());
         render();
     }
 
-function render(){
+    function render(){
         const capa = document.getElementById('capa-jugadores'); capa.innerHTML = '';
         const bL = document.getElementById('banquillo-local'); bL.innerHTML = '';
         const bV = document.getElementById('banquillo-rival'); bV.innerHTML = '';
 
-        posicionesPista.forEach((pos, index) => {
+        posicionesPista.forEach(pos => {
             const d = document.createElement('div');
             d.className = 'jugador';
-            d.id = 'jugador-pista-' + index;
             
-            d.style.border = (jugadorActivo === pos) ? "4px solid var(--led-verde)" : "2px solid #fff";
-            d.style.left = pos.x + "%"; 
-            d.style.top = pos.y + "%";
+            if(jugadorActivo === pos) d.style.border = "4px solid var(--led-verde)";
+            else d.style.border = "2px solid #fff";
+            
+            d.style.left = pos.x + "%"; d.style.top = pos.y + "%";
             d.style.backgroundColor = pos.portero ? 'var(--portero-color)' : (pos.local ? '#FFD600' : '#D50000');
             d.style.color = pos.local ? '#000' : '#fff';
             d.innerHTML = pos.asignado ? pos.asignado.num : "";
@@ -341,102 +336,75 @@ function render(){
             if(pos.asignado) {
                 const sn = document.createElement('span'); 
                 sn.className = 'nombre-jugador-pista';
-                sn.innerText = pos.asignado.nombre; 
-                d.appendChild(sn);
+                sn.innerText = pos.asignado.nombre; d.appendChild(sn);
             }
             
-            let startX, startY, movido = false;
+            let iX, iY, mov = false;
 
-            // Al tocar: Selección visual instantánea
             d.onpointerdown = (e) => {
                 e.stopPropagation();
-                startX = e.clientX;
-                startY = e.clientY;
-                movido = false;
-                arrastrando = true;
-                
-                // Marcamos en verde rápido para que sepas que lo has "cogido"
+                iX = e.clientX; iY = e.clientY;
+                mov = false; arrastrando = true;
                 jugadorActivo = pos;
-                document.querySelectorAll('.jugador').forEach(j => j.style.border = "2px solid #fff");
-                d.style.border = "4px solid var(--led-verde)";
+                render(); 
             };
 
-            // Al mover: Solo si el desplazamiento es notable (>15px)
             d.onpointermove = (e) => {
                 if (!arrastrando || jugadorActivo !== pos) return;
-                
-                const dx = Math.abs(e.clientX - startX);
-                const dy = Math.abs(e.clientY - startY);
-
-                if (dx > 15 || dy > 15) {
-                    movido = true;
+                if (Math.abs(e.clientX - iX) > 15 || Math.abs(e.clientY - iY) > 15) {
+                    mov = true;
                     const r = document.getElementById('pista').getBoundingClientRect();
                     pos.x = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
                     pos.y = Math.max(4, Math.min(96, ((e.clientY - r.top) / r.height) * 100));
-                    d.style.left = pos.x + "%";
-                    d.style.top = pos.y + "%";
+                    d.style.left = pos.x + "%"; d.style.top = pos.y + "%";
                 }
             };
 
-            // Al soltar: Decidimos si fue click de acción o fin de arrastre
             d.onpointerup = (e) => {
                 if (!arrastrando) return;
                 arrastrando = false;
-
-                if (!movido) {
-                    // Es un toque limpio: Abrir acciones o stats
-                    if (modoActual === 'acciones' && pos.asignado) {
-                        abrirMenuAcciones(e.clientX, e.clientY);
-                    } else if (modoActual === 'stats' && pos.asignado) {
-                        mostrarEstadisticaJugador(pos.asignado);
-                    }
+                if (!mov) {
+                    if (modoActual === 'acciones' && pos.asignado) abrirMenuAcciones(e.clientX, e.clientY);
+                    else if (modoActual === 'stats' && pos.asignado) mostrarEstadisticaJugador(pos.asignado);
                 }
                 render(); 
             };
-            
             capa.appendChild(d);
         });
 
-        // Banquillos: Usamos 'onclick' que es infalible en tablets
         [...eqL, ...eqV].forEach(j => {
             if(!j.enPista) {
                 const s = document.createElement('div');
                 s.className = 'jugador-item-banquillo';
                 s.style.cssText = `padding:12px; background:#222; margin-bottom:5px; border-radius:8px; cursor:pointer; font-size:0.85rem; border-left:5px solid ${j.local?'#FFD600':'#D50000'}`;
                 s.innerText = `${j.num}.${j.nombre}`;
-                
-                s.onclick = (e) => {
+                s.onclick = () => {
                     if(jugadorActivo && jugadorActivo.local === j.local) {
                         if(jugadorActivo.asignado) jugadorActivo.asignado.enPista = false;
-                        jugadorActivo.asignado = j; 
-                        j.enPista = true; 
-                        jugadorActivo = null; 
+                        jugadorActivo.asignado = j; j.enPista = true; jugadorActivo = null;
                         render();
                     }
                 };
                 (j.local ? bL : bV).appendChild(s);
             }
         });
-       function actualizarUIBotones() {
-    // 1. Buscamos el botón de acciones
-    const btnAcciones = document.getElementById('btn-acciones');
-    
-    // 2. Si el modo es 'acciones', le ponemos el borde BLANCO y sombra
-    if (modoActual === 'acciones') {
-        btnAcciones.style.border = "4px solid #FFFFFF";
-        btnAcciones.style.boxShadow = "0 0 10px #FFFFFF";
-    } else {
-        btnAcciones.style.border = "none";
-        btnAcciones.style.boxShadow = "none";
+        actualizarUIBotones();
     }
 
-    // 3. Otros botones (Timeout, Stats, Play)
-    document.getElementById('btn-timeout').style.border = (modoActual === 'timeout') ? "4px solid #FFEB3B" : "none";
-    document.getElementById('btn-stats').style.border = (modoActual === 'stats') ? "4px solid #FFEB3B" : "none";
-    
-    const btnPlay = document.getElementById('btn-play');
-    if (btnPlay) btnPlay.style.border = corriendo ? "4px solid #FFEB3B" : "none";
-}
+    function actualizarUIBotones() {
+        const btnAcciones = document.getElementById('btn-acciones');
+        if (modoActual === 'acciones') {
+            btnAcciones.style.border = "4px solid #FFFFFF";
+            btnAcciones.style.boxShadow = "0 0 10px #FFFFFF";
+        } else {
+            btnAcciones.style.border = "none";
+            btnAcciones.style.boxShadow = "none";
+        }
+        document.getElementById('btn-timeout').style.border = (modoActual === 'timeout') ? "4px solid #FFEB3B" : "none";
+        document.getElementById('btn-stats').style.border = (modoActual === 'stats') ? "4px solid #FFEB3B" : "none";
+        const btnPlay = document.getElementById('btn-play');
+        if (btnPlay) btnPlay.style.border = corriendo ? "4px solid #FFEB3B" : "none";
+    }
 
     function deseleccionarJugador() { jugadorActivo = null; render(); }
     
@@ -465,7 +433,7 @@ function render(){
         return `${min}:${seg < 10 ? '0' + seg : seg}`;
     }
 
-   function mostrarEstadisticaEquipo(lado) {
+    function mostrarEstadisticaEquipo(lado) {
         const modal = document.getElementById('modal-stats');
         const cont = document.getElementById('contenido-stats');
         const eq = (lado === 'LOCAL') ? eqL : eqV;
@@ -491,7 +459,6 @@ function render(){
             return `${arr.length} <small style="display:block; font-size:0.6rem; color:#aaa">(${arr.join(', ')})</small>`;
         };
         let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
-        let tiempoJugado = formatoSegundos(j.stats.tiempoSeg);
         let html = `<h2 style="color:var(--led-verde)">${j.num}. ${j.nombre}</h2>`;
         html += `<div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; font-size:1.1rem;">
                     <div style="background:#222; padding:10px; border-radius:5px;">⚽ GOLES: ${getDetalle(j.stats.GOL)}</div>
@@ -500,14 +467,13 @@ function render(){
                     <div style="background:#222; padding:10px; border-radius:5px;">👟 ASIST: ${getDetalle(j.stats.ASISTENCIA)}</div>
                     <div style="background:#222; padding:10px; border-radius:5px;">🟨 AMARILLA: ${getDetalle(j.stats.AMARILLA)}</div>
                     <div style="background:#222; padding:10px; border-radius:5px;">🟥 ROJA: ${getDetalle(j.stats.ROJA)}</div>
-                    <div style="background:#222; padding:10px; border-radius:5px; grid-column:span 2; text-align:center;">⏱️ TIEMPO JUGADO: ${tiempoJugado}</div>
+                    <div style="background:#222; padding:10px; border-radius:5px; grid-column:span 2; text-align:center;">⏱️ TIEMPO JUGADO: ${formatoSegundos(j.stats.tiempoSeg)}</div>
                  </div>`;
-        
-        
         cont.innerHTML = html;
         modal.style.display = 'flex';
         modal.style.pointerEvents = 'auto';
     }
+
     function generarTabla(equipo) {
         const getCompacto = (arr) => {
             if(!arr || arr.length === 0) return "0";
@@ -516,17 +482,7 @@ function render(){
         let h = `<table class="tabla-stats"><tr><th>#</th><th>Jugador</th><th>G</th><th>F</th><th>T</th><th>A</th><th>🟨</th><th>🟥</th><th>Tiempo Jugado</th></tr>`;
         equipo.forEach(j => {
             let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
-            h += `<tr>
-                <td>${j.num}</td>
-                <td>${j.nombre}</td>
-                <td>${getCompacto(j.stats.GOL)}</td>
-                <td>${fTotal.length} <span style="font-size:0.6rem; color:#aaa; display:block">(${fTotal.join(',')})</span></td>
-                <td>${getCompacto(j.stats.TIRO)}</td>
-                <td>${getCompacto(j.stats.ASISTENCIA)}</td>
-                <td>${getCompacto(j.stats.AMARILLA)}</td>
-                <td>${getCompacto(j.stats.ROJA)}</td>
-                <td>${formatoSegundos(j.stats.tiempoSeg)}</td>
-            </tr>`;
+            h += `<tr><td>${j.num}</td><td>${j.nombre}</td><td>${getCompacto(j.stats.GOL)}</td><td>${fTotal.length} <span style="font-size:0.6rem; color:#aaa; display:block">(${fTotal.join(',')})</span></td><td>${getCompacto(j.stats.TIRO)}</td><td>${getCompacto(j.stats.ASISTENCIA)}</td><td>${getCompacto(j.stats.AMARILLA)}</td><td>${getCompacto(j.stats.ROJA)}</td><td>${formatoSegundos(j.stats.tiempoSeg)}</td></tr>`;
         });
         return h + `</table>`;
     }
@@ -534,22 +490,21 @@ function render(){
     function abrirMenuAcciones(x, y) {
         const menu = document.getElementById('menu-acciones');
         menu.style.display = 'block';
-		menu.style.pointerEvents = 'auto';
+        menu.style.pointerEvents = 'auto';
         menu.style.left = Math.min(x, window.innerWidth - 180) + "px";
         menu.style.top = Math.min(y, window.innerHeight - 350) + "px";
     }
+
     function cerrarMenuAcciones() { 
         const menu = document.getElementById('menu-acciones');
         menu.style.display = 'none';
-        // Esto libera la pantalla para que puedas volver a tocar a los jugadores
         menu.style.pointerEvents = 'none';
     }
 
     function registrarAccion(tipo) {
         if(!jugadorActivo || !jugadorActivo.asignado) return;
         let j = jugadorActivo.asignado;
-        let m = Math.floor(tiempo / 60);
-        let s = tiempo % 60;
+        let m = Math.floor(tiempo / 60), s = tiempo % 60;
         let minAccion = `${m}:${s < 10 ? '0' + s : s}`;
         if(tipo==='GOL') {
             j.stats.GOL.push(minAccion);
@@ -572,9 +527,7 @@ function render(){
     
     function toggleFullScreen() { 
         if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.log(`Error al activar pantalla completa: ${err.message}`);
-            });
+            document.documentElement.requestFullscreen().catch(() => {});
         } else {
             if (document.exitFullscreen) document.exitFullscreen();
         }
@@ -601,77 +554,13 @@ function render(){
         localStorage.setItem('futsal_ultima_sesion', JSON.stringify(data));
         actualizarTodosLosDatalists();
     }
-	function abrirConfig(){
-    document.getElementById('modal-config').style.display = 'flex';
-    const listaL = document.getElementById('lista-config-local'); listaL.innerHTML = '';
-    const listaV = document.getElementById('lista-config-rival'); listaV.innerHTML = '';
-    
-    const crearItem = (j, lista) => {
-        const d = document.createElement('div');
-        d.className = 'config-item';
-        d.innerHTML = `
-            <input type="number" value="${j.num}" style="width:40px" onchange="actualizarDato('${j.local?'L':'V'}', ${j.id}, 'num', this.value)">
-            <input type="text" value="${j.nombre}" style="flex:1" onchange="actualizarDato('${j.local?'L':'V'}', ${j.id}, 'nombre', this.value)">
-        `;
-        lista.appendChild(d);
-    };
-    eqL.forEach(j => crearItem(j, listaL));
-    eqV.forEach(j => crearItem(j, listaV));
-}
-
-function cerrarConfig(){
-    document.getElementById('modal-config').style.display = 'none';
-    render();
-}
-
-function actualizarDato(eq, id, campo, valor){
-    const lista = (eq === 'L') ? eqL : eqV;
-    const j = lista.find(x => x.id === id);
-    if(j) {
-        if(campo === 'num') j.num = valor;
-        else j.nombre = valor;
-    }
-}
-
-function guardarConfig(){
-    const datos = {
-        nomL: document.getElementById('input-nomL').value,
-        nomV: document.getElementById('input-nomV').value,
-        eqL: eqL.map(j => ({id:j.id, num:j.num, nombre:j.nombre})),
-        eqV: eqV.map(j => ({id:j.id, num:j.num, nombre:j.nombre}))
-    };
-    localStorage.setItem('futsal_config_v19', JSON.stringify(datos));
-    alert("Configuración guardada correctamente");
-    cargarInputsConfig();
-    render();
-}
-
-function cargarInputsConfig(){
-    const storage = localStorage.getItem('futsal_config_v19');
-    if(storage){
-        const datos = JSON.parse(storage);
-        document.getElementById('input-nomL').value = datos.nomL || "LOCAL";
-        document.getElementById('input-nomV').value = datos.nomV || "RIVAL";
-        nomL = datos.nomL || "LOCAL";
-        nomV = datos.nomV || "RIVAL";
-        
-        datos.eqL.forEach(saved => {
-            let j = eqL.find(x => x.id === saved.id);
-            if(j) { j.num = saved.num; j.nombre = saved.nombre; }
-        });
-        datos.eqV.forEach(saved => {
-            let j = eqV.find(x => x.id === saved.id);
-            if(j) { j.num = saved.num; j.nombre = saved.nombre; }
-        });
-    }
-}
 
     function cargarInputsConfig() {
         const iL = document.getElementById('inputs-local'), iV = document.getElementById('inputs-rival');
         iL.innerHTML = ''; iV.innerHTML = '';
         for(let i=1; i<=14; i++) {
-            iL.innerHTML += `<div class="fila-input-jugador"><input type="text" id="lnum-${i}" class="input-num" value="${i}" onchange="guardarSesion()"><input type="text" id="lnom-${i}" list="list-jugadores-local" class="input-nom" placeholder="J${i}" onmousedown="this.value=''; actualizarDatalistJugadores('local')" onclick="if(this.showPicker) this.showPicker()" onchange="guardarSesion()"></div>`;
-            iV.innerHTML += `<div class="fila-input-jugador"><input type="text" id="rnum-${i}" class="input-num" value="${i}" onchange="guardarSesion()"><input type="text" id="rnom-${i}" list="list-jugadores-rival" class="input-nom" placeholder="J${i}" onmousedown="this.value=''; actualizarDatalistJugadores('rival')" onclick="if(this.showPicker) this.showPicker()" onchange="guardarSesion()"></div>`;
+            iL.innerHTML += `<div class="fila-input-jugador"><input type="text" id="lnum-${i}" class="input-num" value="${i}" onchange="guardarSesion()"><input type="text" id="lnom-${i}" list="list-jugadores-local" class="input-nom" placeholder="J${i}" onmousedown="this.value=''; actualizarDatalistJugadores('local')" onchange="guardarSesion()"></div>`;
+            iV.innerHTML += `<div class="fila-input-jugador"><input type="text" id="rnum-${i}" class="input-num" value="${i}" onchange="guardarSesion()"><input type="text" id="rnom-${i}" list="list-jugadores-rival" class="input-nom" placeholder="J${i}" onmousedown="this.value=''; actualizarDatalistJugadores('rival')" onchange="guardarSesion()"></div>`;
         }
         actualizarTodosLosDatalists();
         const u = JSON.parse(localStorage.getItem('futsal_ultima_sesion'));
@@ -688,56 +577,26 @@ function cargarInputsConfig(){
     function borrarTodo() { if(confirm("¿Borrar historial?")) { localStorage.clear(); location.reload(); } }
     
     function exportarEstadisticas() { 
-        let nomL = document.getElementById('nombre-local').value || "LOCAL";
-        let nomV = document.getElementById('nombre-rival').value || "RIVAL";
-        let temp = document.getElementById('temporada-act').value || "S/N";
-        const sep = "------------------------------------------\n";
-        let txt = "--- RESUMEN DEL PARTIDO ---\n";
-        txt += `TEMPORADA: ${temp}\n`;
-        txt += `MARCADOR: ${nomL} ${golesL} - ${golesV} ${nomV}\n`;
-        txt += sep;
-        const procesarEquipoTexto = (nombre, lista) => {
-            let res = `ESTADÍSTICAS ${nombre.toUpperCase()}\n`;
-            res += sep;
+        let nomL = document.getElementById('nombre-local').value || "LOCAL", nomV = document.getElementById('nombre-rival').value || "RIVAL", temp = document.getElementById('temporada-act').value || "S/N";
+        let txt = `--- RESUMEN DEL PARTIDO ---\nTEMPORADA: ${temp}\nMARCADOR: ${nomL} ${golesL} - ${golesV} ${nomV}\n------------------------------------------\n`;
+        const procesarEq = (nombre, lista) => {
+            let res = `ESTADÍSTICAS ${nombre.toUpperCase()}\n------------------------------------------\n`;
             lista.forEach(j => {
-                let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
-                let tJugado = formatoSegundos(j.stats.tiempoSeg);
-                if(j.stats.tiempoSeg > 0 || j.stats.GOL.length > 0 || fTotal.length > 0) {
-                    res += `[${j.num}] ${j.nombre}\n`;
-                    res += ` - Tiempo: ${tJugado}\n`;
+                let f = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
+                if(j.stats.tiempoSeg > 0 || j.stats.GOL.length > 0) {
+                    res += `[${j.num}] ${j.nombre}\n - Tiempo: ${formatoSegundos(j.stats.tiempoSeg)}\n`;
                     if(j.stats.GOL.length > 0) res += ` - Goles: ${j.stats.GOL.length} (${j.stats.GOL.join(', ')})\n`;
-                    if(fTotal.length > 0) res += ` - Faltas: ${fTotal.length} (${fTotal.join(', ')})\n`;
-                    if(j.stats.AMARILLA.length > 0) res += ` - Amarilla: ${j.stats.AMARILLA.length} (${j.stats.AMARILLA.join(', ')})\n`;
-                    if(j.stats.ROJA.length > 0) res += ` - Roja: ${j.stats.ROJA.length} (${j.stats.ROJA.join(', ')})\n`;
+                    if(f.length > 0) res += ` - Faltas: ${f.length} (${f.join(', ')})\n`;
                 }
             });
-            let tm = historialTiemposMuertos.filter(t => t.equipo === nombre);
-            if(tm.length > 0) res += ` - Tiempos M.: ${tm.map(t => `P${t.parte} ${t.tiempo}`).join(', ')}\n`;
-            res += "\n";
-            return res;
+            return res + "\n";
         };
-        txt += procesarEquipoTexto(nomL, eqL);
-        txt += procesarEquipoTexto(nomV, eqV);
-        txt += "\n--- DATOS PARA EXCEL ---\nEQUIPO\tNUM\tNOMBRE\tTIEMPO\tGOLES\tFALTAS\tAMARILLAS\tROJAS\n";
-        const procesarEquipoExcel = (nombre, lista) => {
-            let res = "";
-            lista.forEach(j => {
-                let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
-                res += `${nombre}\t${j.num}\t${j.nombre}\t${formatoSegundos(j.stats.tiempoSeg)}\t${j.stats.GOL.length}\t${fTotal.length}\t${j.stats.AMARILLA.length}\t${j.stats.ROJA.length}\n`;
-            });
-            return res;
-        };
-        txt += procesarEquipoExcel(nomL, eqL);
-        txt += procesarEquipoExcel(nomV, eqV);
-        navigator.clipboard.writeText(txt).then(() => {
-            alert("¡Estadísticas copiadas!");
-        }).catch(err => {
-            alert("No se pudo copiar automáticamente.");
-        });
+        txt += procesarEq(nomL, eqL) + procesarEq(nomV, eqV);
+        navigator.clipboard.writeText(txt).then(() => alert("Copiado!")).catch(() => alert("Error al copiar"));
     }
 
     cargarInputsConfig();
-	render();
+    render();
 </script>
 </body>
 </html>
