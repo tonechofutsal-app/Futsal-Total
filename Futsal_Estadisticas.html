@@ -58,7 +58,9 @@
             height: 115px; width: 100%; display: flex; 
             background: #000; border-bottom: 3px solid #333; flex-shrink: 0; 
             align-items: center; padding: 0 10px; gap: 10px;
-            padding-right: 130px; /* ESPACIO PARA QUE EL MARCADOR NO CHOQUE CON LOS BOTONES */
+            padding-right: 130px;
+            position: relative;
+            z-index: 10;
         }
 
         #cabecera-marcador { 
@@ -81,13 +83,13 @@
         }
         #cronometro { font-size: 5rem; font-family: 'Courier New', monospace; color: var(--led-verde); font-weight: bold; line-height: 0.8; }
         
-        .cuerpo-app { display: flex; flex-grow: 1; overflow: hidden; background: #111; position: relative; z-index: 50; }
+        .cuerpo-app { display: flex; flex-grow: 1; overflow: hidden; background: #111; position: relative; z-index: 100; }
         .col-banquillo { width: 150px; background: #0a0a0a; padding: 5px; overflow-y: auto; border: 1px solid #222; flex-shrink: 0; touch-action: none; }
         .seccion-pista { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 5px; overflow: hidden; }
-        .campo { position: relative; height: 95%; aspect-ratio: 2 / 1; background: var(--pista-azul); border: 3px solid var(--linea); touch-action: none; }
+        .campo { position: relative; height: 95%; aspect-ratio: 2 / 1; background: var(--pista-azul); border: 3px solid var(--linea); touch-action: none; z-index: 110; }
         
-        #capa-jugadores { position: absolute; inset: 0; z-index: 100; pointer-events: none; }
-        .jugador { position: absolute; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #fff; z-index: 110; transform: translate(-50%, -50%); touch-action: none; pointer-events: auto; font-weight: bold; }
+        #capa-jugadores { position: absolute; inset: 0; z-index: 120; pointer-events: none; }
+        .jugador { position: absolute; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid #fff; z-index: 130; transform: translate(-50%, -50%); touch-action: none; pointer-events: auto; font-weight: bold; }
         
         .nombre-jugador-pista { position: absolute; top: 105%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; color: #fff; background: rgba(0,0,0,0.8); padding: 2px 6px; border-radius: 4px; pointer-events: none; text-transform: uppercase; border: 1px solid #444; }
 
@@ -347,13 +349,16 @@
                 iX = e.clientX; iY = e.clientY;
                 mov = false; arrastrando = true;
                 jugadorActivo = pos;
-                render(); 
+                // Feedback visual inmediato
+                document.querySelectorAll('.jugador').forEach(el => el.style.border = "2px solid #fff");
+                d.style.border = "4px solid var(--led-verde)";
             };
 
             d.onpointermove = (e) => {
                 if (!arrastrando || jugadorActivo !== pos) return;
-                // AUMENTO DE SENSIBILIDAD A 15 PIXELES PARA TABLET
-                if (Math.abs(e.clientX - iX) > 15 || Math.abs(e.clientY - iY) > 15) {
+                // CORRECCIÓN: UMBRAL DE 20 PX PARA EVITAR QUE SE SUELTE EL JUGADOR POR ERROR
+                const dist = Math.sqrt(Math.pow(e.clientX - iX, 2) + Math.pow(e.clientY - iY, 2));
+                if (dist > 20) {
                     mov = true;
                     const r = document.getElementById('pista').getBoundingClientRect();
                     pos.x = Math.max(2, Math.min(98, ((e.clientX - r.left) / r.width) * 100));
@@ -561,8 +566,8 @@
         const iL = document.getElementById('inputs-local'), iV = document.getElementById('inputs-rival');
         iL.innerHTML = ''; iV.innerHTML = '';
         for(let i=1; i<=14; i++) {
-            iL.innerHTML += `<div class="fila-input-jugador"><input type="text" id="lnum-${i}" class="input-num" value="${i}" onchange="guardarSesion()"><input type="text" id="lnom-${i}" list="list-jugadores-local" class="input-nom" placeholder="J${i}" onmousedown="this.value=''; actualizarDatalistJugadores('local')" onchange="guardarSesion()"></div>`;
-            iV.innerHTML += `<div class="fila-input-jugador"><input type="text" id="rnum-${i}" class="input-num" value="${i}" onchange="guardarSesion()"><input type="text" id="rnom-${i}" list="list-jugadores-rival" class="input-nom" placeholder="J${i}" onmousedown="this.value=''; actualizarDatalistJugadores('rival')" onchange="guardarSesion()"></div>`;
+            iL.innerHTML += `<div class=\"fila-input-jugador\"><input type=\"text\" id=\"lnum-${i}\" class=\"input-num\" value=\"${i}\" onchange=\"guardarSesion()\"><input type=\"text\" id=\"lnom-${i}\" list=\"list-jugadores-local\" class=\"input-nom\" placeholder=\"J${i}\" onmousedown=\"this.value=''; actualizarDatalistJugadores('local')\" onchange=\"guardarSesion()\"></div>`;
+            iV.innerHTML += `<div class=\"fila-input-jugador\"><input type=\"text\" id=\"rnum-${i}\" class=\"input-num\" value=\"${i}\" onchange=\"guardarSesion()\"><input type=\"text\" id=\"rnom-${i}\" list=\"list-jugadores-rival\" class=\"input-nom\" placeholder=\"J${i}\" onmousedown=\"this.value=''; actualizarDatalistJugadores('rival')\" onchange=\"guardarSesion()\"></div>`;
         }
         actualizarTodosLosDatalists();
         const u = JSON.parse(localStorage.getItem('futsal_ultima_sesion'));
@@ -579,22 +584,54 @@
     function borrarTodo() { if(confirm("¿Borrar historial?")) { localStorage.clear(); location.reload(); } }
     
     function exportarEstadisticas() { 
-        let nomL = document.getElementById('nombre-local').value || "LOCAL", nomV = document.getElementById('nombre-rival').value || "RIVAL", temp = document.getElementById('temporada-act').value || "S/N";
-        let txt = `--- RESUMEN DEL PARTIDO ---\nTEMPORADA: ${temp}\nMARCADOR: ${nomL} ${golesL} - ${golesV} ${nomV}\n------------------------------------------\n`;
-        const procesarEq = (nombre, lista) => {
+        let nomL = document.getElementById('nombre-local').value || "LOCAL", 
+            nomV = document.getElementById('nombre-rival').value || "RIVAL", 
+            temp = document.getElementById('temporada-act').value || "S/N";
+        
+        let txt = `--- RESUMEN DEL PARTIDO ---\nTEMPORADA: ${temp}\nPARTIDO: ${nomL} vs ${nomV}\nRESULTADO: ${golesL} - ${golesV}\n------------------------------------------\n\n`;
+
+        const procesarEquipoTexto = (nombre, lista) => {
             let res = `ESTADÍSTICAS ${nombre.toUpperCase()}\n------------------------------------------\n`;
             lista.forEach(j => {
-                let f = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
-                if(j.stats.tiempoSeg > 0 || j.stats.GOL.length > 0) {
-                    res += `[${j.num}] ${j.nombre}\n - Tiempo: ${formatoSegundos(j.stats.tiempoSeg)}\n`;
+                let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
+                if(j.stats.tiempoSeg > 0 || j.stats.GOL.length > 0 || fTotal.length > 0) {
+                    res += `[${j.num}] ${j.nombre}\n`;
+                    res += ` - Tiempo jugado: ${formatoSegundos(j.stats.tiempoSeg)}\n`;
                     if(j.stats.GOL.length > 0) res += ` - Goles: ${j.stats.GOL.length} (${j.stats.GOL.join(', ')})\n`;
-                    if(f.length > 0) res += ` - Faltas: ${f.length} (${f.join(', ')})\n`;
+                    if(fTotal.length > 0) res += ` - Faltas: ${fTotal.length} (${fTotal.join(', ')})\n`;
+                    if(j.stats.TIRO.length > 0) res += ` - Tiros: ${j.stats.TIRO.length} (${j.stats.TIRO.join(', ')})\n`;
+                    if(j.stats.ASISTENCIA.length > 0) res += ` - Asistencias: ${j.stats.ASISTENCIA.length} (${j.stats.ASISTENCIA.join(', ')})\n`;
+                    if(j.stats.AMARILLA.length > 0) res += ` - Amarilla: ${j.stats.AMARILLA.length} (${j.stats.AMARILLA.join(', ')})\n`;
+                    if(j.stats.ROJA.length > 0) res += ` - Roja: ${j.stats.ROJA.length} (${j.stats.ROJA.join(', ')})\n`;
                 }
             });
-            return res + "\n";
+            let tm = historialTiemposMuertos.filter(t => t.equipo === nombre);
+            if(tm.length > 0) res += ` - Tiempos M.: ${tm.map(t => `P${t.parte} ${t.tiempo}`).join(', ')}\n`;
+            res += "\n";
+            return res;
         };
-        txt += procesarEq(nomL, eqL) + procesarEq(nomV, eqV);
-        navigator.clipboard.writeText(txt).then(() => alert("Copiado!")).catch(() => alert("Error al copiar"));
+
+        txt += procesarEquipoTexto(nomL, eqL);
+        txt += procesarEquipoTexto(nomV, eqV);
+
+        txt += "\n--- DATOS PARA EXCEL ---\nEQUIPO\tNUM\tNOMBRE\tTIEMPO\tGOLES\tFALTAS\tAMARILLAS\tROJAS\n";
+        const procesarEquipoExcel = (nombre, lista) => {
+            let res = "";
+            lista.forEach(j => {
+                let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
+                res += `${nombre}\t${j.num}\t${j.nombre}\t${formatoSegundos(j.stats.tiempoSeg)}\t${j.stats.GOL.length}\t${fTotal.length}\t${j.stats.AMARILLA.length}\t${j.stats.ROJA.length}\n`;
+            });
+            return res;
+        };
+        txt += procesarEquipoExcel(nomL, eqL);
+        txt += procesarEquipoExcel(nomV, eqV);
+
+        navigator.clipboard.writeText(txt).then(() => {
+            alert("Estadísticas copiadas al portapapeles. Puedes pegarlas en un bloc de notas o Excel.");
+        }).catch(err => {
+            console.error('Error al copiar: ', err);
+            alert("Error al copiar. Mira la consola.");
+        });
     }
 
     cargarInputsConfig();
