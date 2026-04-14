@@ -58,6 +58,7 @@
             height: 115px; width: 100%; display: flex; 
             background: #000; border-bottom: 3px solid #333; flex-shrink: 0; 
             align-items: center; padding: 0 10px; gap: 10px;
+            padding-right: 130px; /* ESPACIO PARA QUE EL MARCADOR NO CHOQUE CON LOS BOTONES */
         }
 
         #cabecera-marcador { 
@@ -80,7 +81,7 @@
         }
         #cronometro { font-size: 5rem; font-family: 'Courier New', monospace; color: var(--led-verde); font-weight: bold; line-height: 0.8; }
         
-        .cuerpo-app { display: flex; flex-grow: 1; overflow: hidden; background: #111; position: relative; }
+        .cuerpo-app { display: flex; flex-grow: 1; overflow: hidden; background: #111; position: relative; z-index: 50; }
         .col-banquillo { width: 150px; background: #0a0a0a; padding: 5px; overflow-y: auto; border: 1px solid #222; flex-shrink: 0; touch-action: none; }
         .seccion-pista { flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 5px; overflow: hidden; }
         .campo { position: relative; height: 95%; aspect-ratio: 2 / 1; background: var(--pista-azul); border: 3px solid var(--linea); touch-action: none; }
@@ -90,7 +91,7 @@
         
         .nombre-jugador-pista { position: absolute; top: 105%; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 0.7rem; color: #fff; background: rgba(0,0,0,0.8); padding: 2px 6px; border-radius: 4px; pointer-events: none; text-transform: uppercase; border: 1px solid #444; }
 
-        .controles { height: 85px; padding: 8px 5px; display: flex; gap: 4px; background: #000; border-top: 3px solid #444; justify-content: center; flex-shrink: 0; }
+        .controles { height: 85px; padding: 8px 5px; display: flex; gap: 4px; background: #000; border-top: 3px solid #444; justify-content: center; flex-shrink: 0; z-index: 1000; }
         .btn-footer { height: 100%; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 0.6rem; flex: 1; text-transform: uppercase; transition: border 0.1s; }
 
         #menu-acciones { position: fixed; display: none; background: #1a1a1a; border: 2px solid #555; border-radius: 12px; z-index: 10000; width: 170px; box-shadow: 0 4px 30px rgba(0,0,0,0.9); overflow: hidden; }
@@ -351,6 +352,7 @@
 
             d.onpointermove = (e) => {
                 if (!arrastrando || jugadorActivo !== pos) return;
+                // AUMENTO DE SENSIBILIDAD A 15 PIXELES PARA TABLET
                 if (Math.abs(e.clientX - iX) > 15 || Math.abs(e.clientY - iY) > 15) {
                     mov = true;
                     const r = document.getElementById('pista').getBoundingClientRect();
