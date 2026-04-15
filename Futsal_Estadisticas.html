@@ -275,7 +275,6 @@
             border: 1px solid #444;
         }
 
-        /* CAPA DE ZONAS - CORRECCIÓN PARA TABLET */
         #capa-zonas-tacticas {
             position: absolute;
             inset: 0;
@@ -299,7 +298,6 @@
         }
         .celda-zona:active { background: rgba(0,230,118,0.5); }
 
-        /* MINI MAPA EN ESTADÍSTICAS */
         .contenedor-mini-mapa {
             width: 100%;
             max-width: 450px;
@@ -533,7 +531,6 @@
     let historialTiemposMuertos = [];
     let tiempoEstabaCorriendoAntesDeTM = false;
 
-    // Coordenadas fijas para pintar los puntos en el mini-mapa basado en la ID de zona (1-12)
     const centroZonas = {
         1:[8.3, 25], 2:[25, 25], 3:[41.6, 25], 4:[58.3, 25], 5:[75, 25], 6:[91.6, 25],
         7:[8.3, 75], 8:[25, 75], 9:[41.6, 75], 10:[58.3, 75], 11:[75, 75], 12:[91.6, 75]
@@ -688,7 +685,7 @@
         if(!jugadorActivo || !jugadorActivo.asignado || !accionPendiente) return;
         const j = jugadorActivo.asignado;
         const min = document.getElementById('cronometro').innerText;
-        const registro = { t: min, z: zonaId };
+        const registro = { t: min, z: zonaId, p: parteActual };
 
         if(accionPendiente === 'GOL') {
             j.stats.GOL.push(registro);
@@ -714,23 +711,26 @@
         render();
     }
 
-    function crearMiniMapa(stats) {
+    function crearMiniMapa(stats, numParte) {
         const contenedor = document.createElement('div');
         contenedor.className = 'contenedor-mini-mapa';
-        contenedor.innerHTML = `<div class="linea-medio"></div><div class="circulo-central"></div><div class="area-6m area-izq"></div><div class="area-6m area-der"></div>`;
+        contenedor.innerHTML = `<div style="position:absolute; top:5px; left:10px; font-size:0.7rem; color:rgba(255,255,255,0.6)">${numParte}ª PARTE</div><div class="linea-medio"></div><div class="circulo-central"></div><div class="area-6m area-izq"></div><div class="area-6m area-der"></div>`;
         
         const categorias = ['GOL', 'FALTA_P1', 'FALTA_P2', 'TIRO', 'ASISTENCIA', 'AMARILLA', 'ROJA'];
         categorias.forEach(cat => {
             const arr = stats[cat] || [];
             arr.forEach(reg => {
-                if(reg.z && centroZonas[reg.z]) {
-                    const dot = document.createElement('div');
-                    dot.className = 'punto-mapa';
-                    const colorKey = cat.startsWith('FALTA') ? 'FALTA' : cat;
-                    dot.style.backgroundColor = coloresAcciones[colorKey] || 'white';
-                    dot.style.left = centroZonas[reg.z][0] + '%';
-                    dot.style.top = centroZonas[reg.z][1] + '%';
-                    contenedor.appendChild(dot);
+                // Solo pintar si el registro pertenece a la parte que estamos dibujando
+                if(reg.p === numParte || (cat === 'FALTA_P1' && numParte === 1) || (cat === 'FALTA_P2' && numParte === 2)) {
+                    if(reg.z && centroZonas[reg.z]) {
+                        const dot = document.createElement('div');
+                        dot.className = 'punto-mapa';
+                        const colorKey = cat.startsWith('FALTA') ? 'FALTA' : cat;
+                        dot.style.backgroundColor = coloresAcciones[colorKey] || 'white';
+                        dot.style.left = centroZonas[reg.z][0] + '%';
+                        dot.style.top = centroZonas[reg.z][1] + '%';
+                        contenedor.appendChild(dot);
+                    }
                 }
             });
         });
@@ -749,8 +749,9 @@
             }
         });
 
-        cont.innerHTML = `<h2 style="color:var(--led-verde)">ZONAS EQUIPO ${lado}</h2>`;
-        cont.appendChild(crearMiniMapa(statsGlobales));
+        cont.innerHTML = `<h2 style="color:var(--led-verde)">ESTADÍSTICAS EQUIPO ${lado}</h2>`;
+        cont.appendChild(crearMiniMapa(statsGlobales, 1));
+        cont.appendChild(crearMiniMapa(statsGlobales, 2));
 
         let html = `<table class="tabla-stats"><thead><tr><th>#</th><th>NOM</th><th>T</th><th>G</th><th>F</th></tr></thead><tbody>`;
         eq.forEach(j => {
@@ -766,7 +767,8 @@
         const modal = document.getElementById('modal-stats');
         const cont = document.getElementById('contenido-stats');
         cont.innerHTML = `<h2 style="color:var(--led-verde)">${j.num}. ${j.nombre}</h2>`;
-        cont.appendChild(crearMiniMapa(j.stats));
+        cont.appendChild(crearMiniMapa(j.stats, 1));
+        cont.appendChild(crearMiniMapa(j.stats, 2));
         
         let fTotal = (j.stats.FALTA_P1?.length || 0) + (j.stats.FALTA_P2?.length || 0);
         cont.innerHTML += `<table class="tabla-stats"><tr><th>TIEMPO</th><td>${Math.floor(j.stats.tiempoSeg/60)} min</td></tr><tr><th>GOLES</th><td>${j.stats.GOL.length}</td></tr><tr><th>FALTAS</th><td>${fTotal}</td></tr><tr><th>AMARILLAS</th><td>${j.stats.AMARILLA.length}</td></tr><tr><th>ROJAS</th><td>${j.stats.ROJA.length}</td></tr></table>`;
@@ -811,13 +813,20 @@
     }
     
     function volverAConfig() { document.getElementById('interfaz-partido').style.display='none'; document.getElementById('pantalla-config').style.display='flex'; }
-    function permutarCampo() { posicionesPista.forEach(p => p.x = 100 - p.x); render(); }
+    
+    function permutarCampo() { 
+        posicionesPista.forEach(p => p.x = 100 - p.x); 
+        render(); 
+    }
+
     function alternarParte() { 
         parteActual = (parteActual===1)?2:1; 
         document.getElementById('label-parte').innerText = parteActual + "ª PARTE"; 
         tiempo = 1200; 
+        permutarCampo(); // Giro automático de jugadores y banquillos solicitado
         render(); 
     }
+    
     function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
     
     function actualizarUIBotones() {
