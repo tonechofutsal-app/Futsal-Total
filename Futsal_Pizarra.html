@@ -103,7 +103,7 @@
 
         .control-point { position: absolute; width: 20px; height: 20px; background: #FFEB3B; border: 2px solid #000; border-radius: 50%; cursor: crosshair; z-index: 200; display: none; transform: translate(-50%, -50%); touch-action: none; }
         
-        /* Estilos nuevos para Animación y Guardado */
+        /* Animación y Guardado */
         .anim-controls { display: flex; gap: 5px; grid-column: 1 / span 3; width: 100%; margin-top: 5px; }
         .btn-anim { flex: 1; padding: 10px 5px; font-size: 0.7rem; }
         #select-ejercicios { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin-top: 5px; }
@@ -202,20 +202,15 @@
     let modo = 'mover', dibujando = false, selectedEl = null, zIndexGlobal = 100, numL = 1, numV = 1, trazos = [];
     let colorAct = 'white', grosorAct = 3, estiloAct = 'recto', efectoAct = 'continuo', startX, startY;
     
-    // Variables para Animación
+    // Variables para Animación (Ahora persistentes)
     let frames = [];
 
     function resize() { canvas.width = campo.clientWidth; canvas.height = campo.clientHeight; render(); }
     window.onload = () => { resize(); actualizarListaEjercicios(); }; window.onresize = resize;
 
     function toggleFullScreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen();
-        } else {
-            if (document.exitFullscreen) {
-                document.exitFullscreen();
-            }
-        }
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else if (document.exitFullscreen) document.exitFullscreen();
     }
 
     function setModo(m) {
@@ -279,7 +274,14 @@
         
         const wrapper = document.createElement('div');
         wrapper.className = 'item-clonado';
-        wrapper.id = 'item-' + Date.now() + Math.random();
+        
+        // Asignación de ID único persistente
+        if(configExistente && configExistente.idPersistente) {
+            wrapper.id = configExistente.idPersistente;
+        } else {
+            wrapper.id = 'it-' + Date.now() + '-' + Math.floor(Math.random()*1000);
+        }
+
         wrapper.dataset.angulo = configExistente ? configExistente.ang : 0;
         wrapper.dataset.tipoOriginal = tipo;
         wrapper.dataset.nombreOriginal = nombre;
@@ -306,8 +308,7 @@
         }
         
         if(configExistente) {
-            el.style.width = configExistente.w;
-            el.style.height = configExistente.h;
+            el.style.width = configExistente.w; el.style.height = configExistente.h;
             el.style.background = configExistente.bg;
             el.style.setProperty('--color-bg', configExistente.colorBg);
             el.style.setProperty('--color-custom', configExistente.colorCustom);
@@ -323,15 +324,11 @@
         pop.onclick = (ev) => ev.stopPropagation();
         ['#CCFF00', '#F44336', '#2196F3', '#FFEB3B', '#FFFFFF'].forEach(color => {
             const dot = document.createElement('div');
-            dot.className = 'dot-pop';
-            dot.style.background = color;
+            dot.className = 'dot-pop'; dot.style.background = color;
             dot.onpointerdown = (ev) => {
                 ev.stopPropagation();
                 if(isJug) el.style.setProperty('--color-bg', color);
-                else { 
-                    el.style.setProperty('--color-custom', color);
-                    if(!tipo.includes('libre') && !tipo.includes('limpio')) el.style.background = color;
-                }
+                else { el.style.setProperty('--color-custom', color); if(!tipo.includes('libre') && !tipo.includes('limpio')) el.style.background = color; }
             };
             pop.appendChild(dot);
         });
@@ -342,20 +339,14 @@
             rot.onpointerdown = (ev) => {
                 ev.stopPropagation(); const rect = wrapper.getBoundingClientRect();
                 const cX = rect.left + rect.width/2; const cY = rect.top + rect.height/2;
-                const moveR = (me) => { 
-                    const angleDeg = Math.atan2(me.clientY - cY, me.clientX - cX) * (180/Math.PI) + 90; 
-                    wrapper.dataset.angulo = angleDeg; 
-                    wrapper.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`; 
-                };
+                const moveR = (me) => { const angleDeg = Math.atan2(me.clientY - cY, me.clientX - cX) * (180/Math.PI) + 90; wrapper.dataset.angulo = angleDeg; wrapper.style.transform = `translate(-50%, -50%) rotate(${angleDeg}deg)`; };
                 const stopR = () => { window.removeEventListener('pointermove', moveR); window.removeEventListener('pointerup', stopR); };
                 window.addEventListener('pointermove', moveR); window.addEventListener('pointerup', stopR);
             };
 
             if(isMaterialExpansible) {
                 const addResizer = (clase, modoResize) => {
-                    const rs = document.createElement('div');
-                    rs.className = `resizer ${clase}`;
-                    wrapper.appendChild(rs);
+                    const rs = document.createElement('div'); rs.className = `resizer ${clase}`; wrapper.appendChild(rs);
                     rs.onpointerdown = (ev) => {
                         ev.stopPropagation();
                         const sX = ev.clientX, sY = ev.clientY, sW = el.offsetWidth, sH = el.offsetHeight;
@@ -364,23 +355,15 @@
                             const dx = me.clientX - sX, dy = me.clientY - sY;
                             const localX = dx * Math.cos(angRad) + dy * Math.sin(angRad);
                             const localY = -dx * Math.sin(angRad) + dy * Math.cos(angRad);
-                            if(modoResize === 'diag') {
-                                const f = 1 + (localX + localY)/100;
-                                el.style.width = Math.max(10, sW * f) + "px";
-                                el.style.height = Math.max(10, sH * f) + "px";
-                            } else if(modoResize === 'base') {
-                                el.style.height = Math.max(5, sH + localY) + "px";
-                            } else if(modoResize === 'lat') {
-                                el.style.width = Math.max(5, sW + localX) + "px";
-                            }
+                            if(modoResize === 'diag') { const f = 1 + (localX + localY)/100; el.style.width = Math.max(10, sW * f) + "px"; el.style.height = Math.max(10, sH * f) + "px"; }
+                            else if(modoResize === 'base') el.style.height = Math.max(5, sH + localY) + "px";
+                            else if(modoResize === 'lat') el.style.width = Math.max(5, sW + localX) + "px";
                         };
                         const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
                         window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop);
                     };
                 };
-                addResizer('diagonal', 'diag');
-                addResizer('base', 'base');
-                addResizer('lateral', 'lat');
+                addResizer('diagonal', 'diag'); addResizer('base', 'base'); addResizer('lateral', 'lat');
             }
         }
 
@@ -388,8 +371,7 @@
         const rP = campo.getBoundingClientRect();
         
         if(configExistente) {
-            wrapper.style.left = configExistente.x;
-            wrapper.style.top = configExistente.y;
+            wrapper.style.left = configExistente.x; wrapper.style.top = configExistente.y;
             wrapper.style.transform = `translate(-50%, -50%) rotate(${configExistente.ang}deg)`;
         } else {
             const initX = Math.max(0, Math.min(e.clientX - rP.left, rP.width));
@@ -407,9 +389,8 @@
             const sX = ev.clientX, sY = ev.clientY, sL = wrapper.offsetLeft, sT = wrapper.offsetTop;
             const move = (me) => { 
                 if(Math.abs(me.clientX-sX)>4 || Math.abs(me.clientY-sY)>4) hasMoved = true; 
-                let newX = Math.max(0, Math.min(sL + (me.clientX - sX), rP.width));
-                let newY = Math.max(0, Math.min(sT + (me.clientY - sY), rP.height));
-                wrapper.style.left = newX + "px"; wrapper.style.top = newY + "px"; 
+                wrapper.style.left = Math.max(0, Math.min(sL + (me.clientX - sX), rP.width)) + "px";
+                wrapper.style.top = Math.max(0, Math.min(sT + (me.clientY - sY), rP.height)) + "px"; 
             };
             const stop = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', stop); };
             window.addEventListener('pointermove', move); window.addEventListener('pointerup', stop);
@@ -457,7 +438,7 @@
         }
     });
 
-    // --- NUEVAS FUNCIONES: ANIMACIÓN Y BIBLIOTECA ---
+    // --- ANIMACIÓN Y BIBLIOTECA ---
 
     function grabarFrame() {
         const items = document.querySelectorAll('.item-clonado');
@@ -477,8 +458,7 @@
             currentFrame.forEach(data => {
                 const el = document.getElementById(data.id);
                 if (el) {
-                    el.style.left = data.x;
-                    el.style.top = data.y;
+                    el.style.left = data.x; el.style.top = data.y;
                     el.style.transform = `translate(-50%, -50%) rotate(${data.ang}deg)`;
                     el.dataset.angulo = data.ang;
                 }
@@ -489,8 +469,10 @@
     }
 
     function borrarAnimacion() {
-        frames = [];
-        document.getElementById('status-anim').innerText = `Pasos: 0`;
+        if(confirm("¿Borrar todos los pasos de la animación?")) {
+            frames = [];
+            document.getElementById('status-anim').innerText = `Pasos: 0`;
+        }
     }
 
     function guardarEjercicio() {
@@ -501,13 +483,12 @@
         document.querySelectorAll('.item-clonado').forEach(it => {
             const visual = it.querySelector('.visual-container > div');
             items.push({
+                idPersistente: it.id,
                 tipo: it.dataset.tipoOriginal,
                 nom: it.dataset.nombreOriginal,
-                x: it.style.left,
-                y: it.style.top,
+                x: it.style.left, y: it.style.top,
                 ang: it.dataset.angulo,
-                w: visual.style.width,
-                h: visual.style.height,
+                w: visual.style.width, h: visual.style.height,
                 bg: visual.style.background,
                 colorBg: visual.style.getPropertyValue('--color-bg'),
                 colorCustom: visual.style.getPropertyValue('--color-custom'),
@@ -520,6 +501,7 @@
         biblioteca.push(ejercicio);
         localStorage.setItem('biblioteca_futsal', JSON.stringify(biblioteca));
         actualizarListaEjercicios();
+        alert("Ejercicio y animación guardados.");
     }
 
     function actualizarListaEjercicios() {
@@ -528,8 +510,7 @@
         const biblioteca = JSON.parse(localStorage.getItem('biblioteca_futsal') || "[]");
         biblioteca.forEach((ej, index) => {
             const opt = document.createElement('option');
-            opt.value = index;
-            opt.innerText = ej.nombre;
+            opt.value = index; opt.innerText = ej.nombre;
             select.appendChild(opt);
         });
     }
@@ -541,19 +522,13 @@
         const biblioteca = JSON.parse(localStorage.getItem('biblioteca_futsal') || "[]");
         const ej = biblioteca[index];
         
-        // Limpiar pista
         document.querySelectorAll('.item-clonado').forEach(it => it.remove());
         
-        // Cargar Items
-        ej.items.forEach(it => {
-            crear(null, it.tipo, it.nom, it);
-        });
+        ej.items.forEach(it => { crear(null, it.tipo, it.nom, it); });
         
-        // Cargar Trazos
         trazos = ej.trazos || [];
         render();
         
-        // Cargar Animación
         frames = ej.frames || [];
         document.getElementById('status-anim').innerText = `Pasos: ${frames.length}`;
     }
