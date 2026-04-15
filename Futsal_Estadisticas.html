@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, touch-action=manipulation">
-    <title>Futsal Pro - v20.5 Persistente</title>
+    <title>Futsal Pro - v20.6</title>
     <style>
         :root { 
             --pista-azul: #0D47A1; --linea: #FFFFFF; --led-verde: #00E676;
@@ -220,6 +220,7 @@
     let eqL = [], eqV = [], jugadorActivo = null;
     let golesL = 0, golesV = 0, faltasL_P1 = 0, faltasV_P1 = 0, faltasL_P2 = 0, faltasV_P2 = 0, parteActual = 1;
     let historialTiemposMuertos = [];
+    let tiempoEstabaCorriendoAntesDeTM = false;
 
     // --- PERSISTENCIA ---
     function guardarTodo() {
@@ -331,7 +332,6 @@
             capa.appendChild(d);
         });
 
-        // ORDEN ALFABÉTICO EN BANQUILLO
         const ordenar = (a, b) => a.nombre.localeCompare(b.nombre);
         eqL.filter(j => !j.enPista && j.convocado).sort(ordenar).forEach(j => bL.appendChild(crearBotonBanquillo(j)));
         eqV.filter(j => !j.enPista && j.convocado).sort(ordenar).forEach(j => bV.appendChild(crearBotonBanquillo(j)));
@@ -395,9 +395,27 @@
     }
 
     function cerrarMenuAcciones() { document.getElementById('menu-acciones').style.display = 'none'; }
-    function toggleModo(m) { modoActual = (modoActual === m) ? 'movimiento' : m; render(); }
+    
+    // MODIFICACIÓN T.MUERTO PARA PARAR TIEMPO
+    function toggleModo(m) { 
+        if(m === 'timeout') {
+            if(modoActual === 'timeout') {
+                modoActual = 'movimiento';
+                if(tiempoEstabaCorriendoAntesDeTM) corriendo = true;
+            } else {
+                modoActual = 'timeout';
+                tiempoEstabaCorriendoAntesDeTM = corriendo;
+                corriendo = false;
+            }
+        } else {
+            modoActual = (modoActual === m) ? 'movimiento' : m; 
+        }
+        render(); 
+    }
+
     function iniciarJuego(){ corriendo = true; }
     function pararJuego(){ corriendo = false; guardarTodo(); }
+    
     function actualizarCrono(){ 
         if(corriendo && tiempo > 0) { 
             tiempo--; let m=Math.floor(tiempo/60), s=tiempo%60; 
@@ -419,32 +437,66 @@
     function permutarCampo() { posicionesPista.forEach(p => p.x = 100 - p.x); render(); }
     function alternarParte() { parteActual = (parteActual===1)?2:1; document.getElementById('label-parte').innerText = parteActual + "ª PARTE"; tiempo = 1200; render(); }
     function toggleFullScreen() { if (!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+    
     function actualizarUIBotones() {
         document.getElementById('btn-acciones').style.background = (modoActual === 'acciones') ? "#fff" : "#673AB7";
         document.getElementById('btn-acciones').style.color = (modoActual === 'acciones') ? "#000" : "#fff";
         document.getElementById('btn-stats').style.background = (modoActual === 'stats') ? "#fff" : "#009688";
         document.getElementById('btn-stats').style.color = (modoActual === 'stats') ? "#000" : "#fff";
+        document.getElementById('btn-timeout').style.background = (modoActual === 'timeout') ? "#fff" : "#FF5722";
+        document.getElementById('btn-timeout').style.color = (modoActual === 'timeout') ? "#000" : "#fff";
     }
+
     function manejadorClickCabecera(lado) {
         if(modoActual === 'timeout') {
             let m = Math.floor(tiempo / 60), s = tiempo % 60;
             historialTiemposMuertos.push({ equipo: lado, tiempo: `${m}:${s<10?'0'+s:s}`, parte: parteActual });
-            alert("Tiempo Muerto registrado");
+            alert("Tiempo Muerto " + lado + " registrado.");
         } else if(modoActual === 'stats') { mostrarEstadisticaEquipo(lado); }
     }
+
     function activarKeepAwake() { if('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(()=>{}); }
     function limpiarTodo() { if(confirm("¿Borrar todos los datos?")) { localStorage.clear(); location.reload(); } }
     
+    // EXPORTACIÓN A DESCARGAS
     function exportarEstadisticas() {
-        let txt = `PARTIDO: ${document.getElementById('nombre-local').value} vs ${document.getElementById('nombre-rival').value}\nFECHA: ${document.getElementById('fecha-act').value}\n\n`;
-        const procesar = (eq, lista) => {
-            let r = `EQUIPO: ${eq}\n`;
-            lista.forEach(j => r += `${j.num}. ${j.nombre} - G: ${j.stats.GOL.length} - T: ${Math.floor(j.stats.tiempoSeg/60)}m\n`);
-            return r + "\n";
+        const nomL = document.getElementById('nombre-local').value || "LOCAL";
+        const nomV = document.getElementById('nombre-rival').value || "RIVAL";
+        let txt = `ESTADÍSTICAS FUTSAL\n==================\n`;
+        txt += `TEMPORADA: ${document.getElementById('temporada-act').value}\n`;
+        txt += `JORNADA: ${document.getElementById('jornada-act').value}\n`;
+        txt += `FECHA: ${document.getElementById('fecha-act').value}\n`;
+        txt += `PARTIDO: ${nomL} vs ${nomV}\n\n`;
+
+        const procesar = (eqNombre, lista) => {
+            let r = `EQUIPO: ${eqNombre}\n`;
+            r += `--------------------------\n`;
+            lista.forEach(j => {
+                let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
+                r += `${j.num}. ${j.nombre}\n`;
+                r += `   Goles: ${j.stats.GOL.length} [${j.stats.GOL.join(', ')}]\n`;
+                r += `   Faltas: ${fTotal.length}\n`;
+                r += `   Asistencias: ${j.stats.ASISTENCIA.length}\n`;
+                r += `   Tarjetas: A(${j.stats.AMARILLA.length}) R(${j.stats.ROJA.length})\n`;
+                r += `   Tiempo: ${Math.floor(j.stats.tiempoSeg/60)} min\n\n`;
+            });
+            return r;
         };
-        txt += procesar("LOCAL", eqL) + procesar("RIVAL", eqV);
-        let blob = new Blob([txt], {type: "text/plain"});
-        let a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "Estadisticas.txt"; a.click();
+
+        txt += procesar(nomL, eqL);
+        txt += procesar(nomV, eqV);
+        txt += `\nTIEMPOS MUERTOS:\n`;
+        historialTiemposMuertos.forEach(tm => {
+            txt += `- ${tm.equipo}: Parte ${tm.parte} (Crono: ${tm.tiempo})\n`;
+        });
+
+        let blob = new Blob([txt], {type: "text/plain;charset=utf-8"});
+        let a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `Futsal_${nomL}_vs_${nomV}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
     }
 
     window.onload = () => { cargarInputsConfig(); recuperarSesion(); };
