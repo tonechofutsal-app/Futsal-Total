@@ -51,7 +51,7 @@
 
         #canvas-dibujo { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; pointer-events: none; touch-action: none; }
 
-        .item-clonado { position: absolute; z-index: 100; cursor: move; display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; }
+        .item-clonado { position: absolute; z-index: 100; cursor: move; display: flex; flex-direction: column; align-items: center; justify-content: center; touch-action: none; transition: left 0.5s ease-in-out, top 0.5s ease-in-out, transform 0.5s ease-in-out; }
         .item-clonado.selected { outline: 1px dashed var(--accent); outline-offset: 12px; }
         .visual-container { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; }
         .label-material { font-size: 10px; margin-top: 5px; color: #ccc; pointer-events: none; text-transform: uppercase; font-weight: bold; text-align: center; }
@@ -102,6 +102,11 @@
         .preview-box span { font-size: 11px; color: #fff; margin-top: 8px; text-transform: uppercase; font-weight: 800; text-align: center; }
 
         .control-point { position: absolute; width: 20px; height: 20px; background: #FFEB3B; border: 2px solid #000; border-radius: 50%; cursor: crosshair; z-index: 200; display: none; transform: translate(-50%, -50%); touch-action: none; }
+        
+        /* Estilos nuevos para Animación y Guardado */
+        .anim-controls { display: flex; gap: 5px; grid-column: 1 / span 3; width: 100%; margin-top: 5px; }
+        .btn-anim { flex: 1; padding: 10px 5px; font-size: 0.7rem; }
+        #select-ejercicios { width: 100%; padding: 8px; background: #333; color: white; border: 1px solid #555; border-radius: 4px; margin-top: 5px; }
     </style>
 </head>
 <body onclick="deseleccionarTodo()">
@@ -121,6 +126,14 @@
 </div>
 
 <div class="panel-tactico" onclick="event.stopPropagation()">
+    <div class="seccion-titulo">BIBLIOTECA</div>
+    <select id="select-ejercicios" onchange="cargarEjercicio(this.value)">
+        <option value="">-- MIS EJERCICIOS --</option>
+    </select>
+    <div class="grid-ui" style="margin-top:10px;">
+        <button class="btn-ui" style="grid-column: 1 / span 3; background: var(--accent);" onclick="guardarEjercicio()">💾 GUARDAR ACTUAL</button>
+    </div>
+
     <div class="seccion-titulo">INTERACCIÓN</div>
     <div class="grid-ui" style="grid-template-columns: 1fr 1fr;">
         <button id="btn-mover" class="btn-ui active" onclick="setModo('mover')">🖐️ MOVER</button>
@@ -161,12 +174,19 @@
         <div class="preview-box" onpointerdown="crear(event, 'balon')"><div class="balon">⚽</div><span>BALÓN</span></div>
     </div>
 
-    <div class="seccion-titulo">ZONAS</div>
+    <div class="seccion-titulo">ZONAS Y ANIMACIÓN</div>
     <div class="grid-ui" style="grid-template-columns: repeat(2, 1fr);">
         <div class="preview-box" onpointerdown="crear(event, 'espacio-libre', 'ZONA C.')"><div class="espacio-libre" style="width:30px; height:30px; border-width:2px;"></div><span>CUAD. L</span></div>
         <div class="preview-box" onpointerdown="crear(event, 'espacio-ocupado', 'ZONA C.')"><div class="espacio-ocupado" style="width:30px; height:30px;"></div><span>CUAD. O</span></div>
         <div class="preview-box" onpointerdown="crear(event, 'circulo-libre', 'ZONA R.')"><div class="circulo-libre" style="width:30px; height:30px; border-width:2px;"></div><span>CIRC. L</span></div>
         <div class="preview-box" onpointerdown="crear(event, 'circulo-ocupado', 'ZONA R.')"><div class="circulo-ocupado" style="width:30px; height:30px;"></div><span>CIRC. O</span></div>
+        
+        <div class="anim-controls">
+            <button class="btn-ui btn-anim" style="background:#E91E63;" onclick="grabarFrame()">🔴 PASO</button>
+            <button class="btn-ui btn-anim" style="background:#2196F3;" onclick="reproducirAnimacion()">▶ PLAY</button>
+            <button class="btn-ui btn-anim" style="background:#444;" onclick="borrarAnimacion()">🗑️ ANIM</button>
+        </div>
+        <div id="status-anim" style="grid-column: 1/span 3; font-size: 10px; text-align: center; color: var(--accent);">Pasos: 0</div>
     </div>
 
     <div style="flex-grow: 1;"></div>
@@ -181,9 +201,12 @@
 
     let modo = 'mover', dibujando = false, selectedEl = null, zIndexGlobal = 100, numL = 1, numV = 1, trazos = [];
     let colorAct = 'white', grosorAct = 3, estiloAct = 'recto', efectoAct = 'continuo', startX, startY;
+    
+    // Variables para Animación
+    let frames = [];
 
     function resize() { canvas.width = campo.clientWidth; canvas.height = campo.clientHeight; render(); }
-    window.onload = resize; window.onresize = resize;
+    window.onload = () => { resize(); actualizarListaEjercicios(); }; window.onresize = resize;
 
     function toggleFullScreen() {
         if (!document.fullscreenElement) {
@@ -250,12 +273,16 @@
         });
     }
 
-    function crear(e, tipo, nombre = "") {
-        if(modo !== 'mover') return;
-        e.preventDefault();
+    function crear(e, tipo, nombre = "", configExistente = null) {
+        if(modo !== 'mover' && !configExistente) return;
+        if(e) e.preventDefault();
+        
         const wrapper = document.createElement('div');
         wrapper.className = 'item-clonado';
-        wrapper.dataset.angulo = 0;
+        wrapper.id = 'item-' + Date.now() + Math.random();
+        wrapper.dataset.angulo = configExistente ? configExistente.ang : 0;
+        wrapper.dataset.tipoOriginal = tipo;
+        wrapper.dataset.nombreOriginal = nombre;
         
         const visualCont = document.createElement('div');
         visualCont.className = 'visual-container';
@@ -268,7 +295,8 @@
             el.className = `jug-figura ${tipo}`;
             const numSpan = document.createElement('div');
             numSpan.className = 'num';
-            if(tipo.includes('port')) numSpan.innerText = 'P';
+            if(configExistente) numSpan.innerText = configExistente.numText;
+            else if(tipo.includes('port')) numSpan.innerText = 'P';
             else if(tipo.includes('-l')) numSpan.innerText = numL++;
             else numSpan.innerText = numV++;
             el.appendChild(numSpan);
@@ -277,10 +305,19 @@
             if(tipo === 'balon') el.innerText = "⚽";
         }
         
+        if(configExistente) {
+            el.style.width = configExistente.w;
+            el.style.height = configExistente.h;
+            el.style.background = configExistente.bg;
+            el.style.setProperty('--color-bg', configExistente.colorBg);
+            el.style.setProperty('--color-custom', configExistente.colorCustom);
+        }
+
         visualCont.appendChild(el);
         if(nombre) { const l = document.createElement('div'); l.className = 'label-material'; l.innerText = nombre; visualCont.appendChild(l); }
         wrapper.appendChild(visualCont);
 
+        // Popover colores
         const pop = document.createElement('div');
         pop.className = 'popover-colores';
         pop.onclick = (ev) => ev.stopPropagation();
@@ -349,10 +386,19 @@
 
         campo.appendChild(wrapper);
         const rP = campo.getBoundingClientRect();
-        const initX = Math.max(0, Math.min(e.clientX - rP.left, rP.width));
-        const initY = Math.max(0, Math.min(e.clientY - rP.top, rP.height));
-        wrapper.style.left = initX + "px"; wrapper.style.top = initY + "px";
-        wrapper.style.transform = "translate(-50%, -50%)"; wrapper.style.zIndex = ++zIndexGlobal;
+        
+        if(configExistente) {
+            wrapper.style.left = configExistente.x;
+            wrapper.style.top = configExistente.y;
+            wrapper.style.transform = `translate(-50%, -50%) rotate(${configExistente.ang}deg)`;
+        } else {
+            const initX = Math.max(0, Math.min(e.clientX - rP.left, rP.width));
+            const initY = Math.max(0, Math.min(e.clientY - rP.top, rP.height));
+            wrapper.style.left = initX + "px"; wrapper.style.top = initY + "px";
+            wrapper.style.transform = "translate(-50%, -50%)";
+        }
+        
+        wrapper.style.zIndex = ++zIndexGlobal;
         
         let hasMoved = false;
         wrapper.onpointerdown = (ev) => { 
@@ -371,13 +417,15 @@
         wrapper.onclick = (ev) => { if(modo === 'mover' && !hasMoved) { ev.stopPropagation(); deseleccionarTodo(); selectedEl = wrapper; wrapper.classList.add('selected'); } };
         wrapper.ondblclick = () => wrapper.remove();
         
-        const moveIni = (me) => {
-            const r = campo.getBoundingClientRect();
-            wrapper.style.left = Math.max(0, Math.min(me.clientX - r.left, r.width)) + "px";
-            wrapper.style.top = Math.max(0, Math.min(me.clientY - r.top, r.height)) + "px";
-        };
-        const stopIni = () => { window.removeEventListener('pointermove', moveIni); window.removeEventListener('pointerup', stopIni); };
-        window.addEventListener('pointermove', moveIni); window.addEventListener('pointerup', stopIni);
+        if(!configExistente) {
+            const moveIni = (me) => {
+                const r = campo.getBoundingClientRect();
+                wrapper.style.left = Math.max(0, Math.min(me.clientX - r.left, r.width)) + "px";
+                wrapper.style.top = Math.max(0, Math.min(me.clientY - r.top, r.height)) + "px";
+            };
+            const stopIni = () => { window.removeEventListener('pointermove', moveIni); window.removeEventListener('pointerup', stopIni); };
+            window.addEventListener('pointermove', moveIni); window.addEventListener('pointerup', stopIni);
+        }
     }
 
     canvas.onpointerdown = (e) => {
@@ -408,6 +456,107 @@
             }; 
         }
     });
+
+    // --- NUEVAS FUNCIONES: ANIMACIÓN Y BIBLIOTECA ---
+
+    function grabarFrame() {
+        const items = document.querySelectorAll('.item-clonado');
+        const frameData = [];
+        items.forEach(it => {
+            frameData.push({ id: it.id, x: it.style.left, y: it.style.top, ang: it.dataset.angulo });
+        });
+        frames.push(frameData);
+        document.getElementById('status-anim').innerText = `Pasos: ${frames.length}`;
+    }
+
+    function reproducirAnimacion() {
+        if (frames.length === 0) return;
+        let i = 0;
+        const interval = setInterval(() => {
+            const currentFrame = frames[i];
+            currentFrame.forEach(data => {
+                const el = document.getElementById(data.id);
+                if (el) {
+                    el.style.left = data.x;
+                    el.style.top = data.y;
+                    el.style.transform = `translate(-50%, -50%) rotate(${data.ang}deg)`;
+                    el.dataset.angulo = data.ang;
+                }
+            });
+            i++;
+            if (i >= frames.length) clearInterval(interval);
+        }, 800);
+    }
+
+    function borrarAnimacion() {
+        frames = [];
+        document.getElementById('status-anim').innerText = `Pasos: 0`;
+    }
+
+    function guardarEjercicio() {
+        const nombre = prompt("Nombre del ejercicio:");
+        if (!nombre) return;
+        
+        const items = [];
+        document.querySelectorAll('.item-clonado').forEach(it => {
+            const visual = it.querySelector('.visual-container > div');
+            items.push({
+                tipo: it.dataset.tipoOriginal,
+                nom: it.dataset.nombreOriginal,
+                x: it.style.left,
+                y: it.style.top,
+                ang: it.dataset.angulo,
+                w: visual.style.width,
+                h: visual.style.height,
+                bg: visual.style.background,
+                colorBg: visual.style.getPropertyValue('--color-bg'),
+                colorCustom: visual.style.getPropertyValue('--color-custom'),
+                numText: visual.querySelector('.num') ? visual.querySelector('.num').innerText : ""
+            });
+        });
+
+        const ejercicio = { nombre, items, trazos, frames };
+        let biblioteca = JSON.parse(localStorage.getItem('biblioteca_futsal') || "[]");
+        biblioteca.push(ejercicio);
+        localStorage.setItem('biblioteca_futsal', JSON.stringify(biblioteca));
+        actualizarListaEjercicios();
+    }
+
+    function actualizarListaEjercicios() {
+        const select = document.getElementById('select-ejercicios');
+        select.innerHTML = '<option value="">-- MIS EJERCICIOS --</option>';
+        const biblioteca = JSON.parse(localStorage.getItem('biblioteca_futsal') || "[]");
+        biblioteca.forEach((ej, index) => {
+            const opt = document.createElement('option');
+            opt.value = index;
+            opt.innerText = ej.nombre;
+            select.appendChild(opt);
+        });
+    }
+
+    function cargarEjercicio(index) {
+        if (index === "") return;
+        if (!confirm("¿Cargar ejercicio? Se perderá el diseño actual.")) return;
+        
+        const biblioteca = JSON.parse(localStorage.getItem('biblioteca_futsal') || "[]");
+        const ej = biblioteca[index];
+        
+        // Limpiar pista
+        document.querySelectorAll('.item-clonado').forEach(it => it.remove());
+        
+        // Cargar Items
+        ej.items.forEach(it => {
+            crear(null, it.tipo, it.nom, it);
+        });
+        
+        // Cargar Trazos
+        trazos = ej.trazos || [];
+        render();
+        
+        // Cargar Animación
+        frames = ej.frames || [];
+        document.getElementById('status-anim').innerText = `Pasos: ${frames.length}`;
+    }
 </script>
 </body>
 </html>
