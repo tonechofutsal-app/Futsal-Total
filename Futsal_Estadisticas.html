@@ -275,7 +275,7 @@
             border: 1px solid #444;
         }
 
-        /* --- NUEVA REJILLA DE ZONAS --- */
+        /* CAPA DE ZONAS - CORRECCIÓN PARA TABLET */
         #capa-zonas-tacticas {
             position: absolute;
             inset: 0;
@@ -284,6 +284,7 @@
             grid-template-columns: repeat(6, 1fr);
             grid-template-rows: repeat(2, 1fr);
             background: rgba(0,0,0,0.3);
+            pointer-events: auto;
         }
         .celda-zona {
             border: 1px dashed rgba(255,255,255,0.2);
@@ -292,10 +293,32 @@
             justify-content: center;
             color: rgba(255,255,255,0.4);
             font-weight: bold;
-            font-size: 1.5rem;
+            font-size: 2rem;
             cursor: pointer;
+            pointer-events: auto;
         }
-        .celda-zona:active { background: rgba(0,230,118,0.4); }
+        .celda-zona:active { background: rgba(0,230,118,0.5); }
+
+        /* MINI MAPA EN ESTADÍSTICAS */
+        .contenedor-mini-mapa {
+            width: 100%;
+            max-width: 450px;
+            margin: 10px auto;
+            aspect-ratio: 2 / 1;
+            background: var(--pista-azul);
+            border: 2px solid white;
+            position: relative;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .punto-mapa {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 1px solid white;
+            transform: translate(-50%, -50%);
+        }
 
         .controles {
             height: 85px;
@@ -446,18 +469,18 @@
                 <div id="capa-jugadores"></div>
                 
                 <div id="capa-zonas-tacticas">
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(1)">1</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(2)">2</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(3)">3</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(4)">4</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(5)">5</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(6)">6</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(7)">7</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(8)">8</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(9)">9</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(10)">10</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(11)">11</div>
-                    <div class="celda-zona" onclick="registrarZonaYFinalizar(12)">12</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(1)">1</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(2)">2</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(3)">3</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(4)">4</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(5)">5</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(6)">6</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(7)">7</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(8)">8</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(9)">9</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(10)">10</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(11)">11</div>
+                    <div class="celda-zona" onpointerdown="registrarZonaYFinalizar(12)">12</div>
                 </div>
             </div>
         </div>
@@ -510,6 +533,13 @@
     let historialTiemposMuertos = [];
     let tiempoEstabaCorriendoAntesDeTM = false;
 
+    // Coordenadas fijas para pintar los puntos en el mini-mapa basado en la ID de zona (1-12)
+    const centroZonas = {
+        1:[8.3, 25], 2:[25, 25], 3:[41.6, 25], 4:[58.3, 25], 5:[75, 25], 6:[91.6, 25],
+        7:[8.3, 75], 8:[25, 75], 9:[41.6, 75], 10:[58.3, 75], 11:[75, 75], 12:[91.6, 75]
+    };
+    const coloresAcciones = { GOL: '#00E676', FALTA: '#FF9800', TIRO: '#2196F3', ASISTENCIA: '#00BCD4', AMARILLA: '#FFEB3B', ROJA: '#F44336' };
+
     function guardarTodo() {
         const datos = {
             temporada: document.getElementById('temporada-act').value,
@@ -522,7 +552,6 @@
             tiempo, parteActual, historialTiemposMuertos
         };
         localStorage.setItem('futsal_master_data', JSON.stringify(datos));
-        
         if(datos.nomL) registrarPlantilla(datos.nomL, eqL);
         if(datos.nomV) registrarPlantilla(datos.nomV, eqV);
     }
@@ -554,7 +583,6 @@
         document.getElementById('fecha-act').value = d.fecha || "";
         document.getElementById('nombre-local').value = d.nomL || "";
         document.getElementById('nombre-rival').value = d.nomV || "";
-        
         if(d.eqL) d.eqL.forEach((j, i) => { if(i<20){ document.getElementById(`lnum-${i+1}`).value=j.num; document.getElementById(`lnom-${i+1}`).value=j.nombre; } });
         if(d.eqV) d.eqV.forEach((j, i) => { if(i<20){ document.getElementById(`rnum-${i+1}`).value=j.num; document.getElementById(`rnom-${i+1}`).value=j.nombre; } });
     }
@@ -650,7 +678,6 @@
 
     function cerrarMenuAcciones() { document.getElementById('menu-acciones').style.display = 'none'; }
 
-    // --- LÓGICA DE ZONAS Y ACCIONES (NUEVO) ---
     function prepararAccion(tipo) {
         accionPendiente = tipo;
         cerrarMenuAcciones();
@@ -659,7 +686,6 @@
 
     function registrarZonaYFinalizar(zonaId) {
         if(!jugadorActivo || !jugadorActivo.asignado || !accionPendiente) return;
-        
         const j = jugadorActivo.asignado;
         const min = document.getElementById('cronometro').innerText;
         const registro = { t: min, z: zonaId };
@@ -686,6 +712,65 @@
         jugadorActivo = null;
         guardarTodo();
         render();
+    }
+
+    function crearMiniMapa(stats) {
+        const contenedor = document.createElement('div');
+        contenedor.className = 'contenedor-mini-mapa';
+        contenedor.innerHTML = `<div class="linea-medio"></div><div class="circulo-central"></div><div class="area-6m area-izq"></div><div class="area-6m area-der"></div>`;
+        
+        const categorias = ['GOL', 'FALTA_P1', 'FALTA_P2', 'TIRO', 'ASISTENCIA', 'AMARILLA', 'ROJA'];
+        categorias.forEach(cat => {
+            const arr = stats[cat] || [];
+            arr.forEach(reg => {
+                if(reg.z && centroZonas[reg.z]) {
+                    const dot = document.createElement('div');
+                    dot.className = 'punto-mapa';
+                    const colorKey = cat.startsWith('FALTA') ? 'FALTA' : cat;
+                    dot.style.backgroundColor = coloresAcciones[colorKey] || 'white';
+                    dot.style.left = centroZonas[reg.z][0] + '%';
+                    dot.style.top = centroZonas[reg.z][1] + '%';
+                    contenedor.appendChild(dot);
+                }
+            });
+        });
+        return contenedor;
+    }
+
+    function mostrarEstadisticaEquipo(lado) {
+        const modal = document.getElementById('modal-stats');
+        const cont = document.getElementById('contenido-stats');
+        const eq = (lado === 'LOCAL') ? eqL : eqV;
+        
+        let statsGlobales = { GOL:[], FALTA_P1:[], FALTA_P2:[], TIRO:[], ASISTENCIA:[], AMARILLA:[], ROJA:[] };
+        eq.forEach(j => {
+            for(let key in statsGlobales) {
+                if(j.stats[key]) statsGlobales[key].push(...j.stats[key]);
+            }
+        });
+
+        cont.innerHTML = `<h2 style="color:var(--led-verde)">ZONAS EQUIPO ${lado}</h2>`;
+        cont.appendChild(crearMiniMapa(statsGlobales));
+
+        let html = `<table class="tabla-stats"><thead><tr><th>#</th><th>NOM</th><th>T</th><th>G</th><th>F</th></tr></thead><tbody>`;
+        eq.forEach(j => {
+            let fTotal = (j.stats.FALTA_P1?.length || 0) + (j.stats.FALTA_P2?.length || 0);
+            html += `<tr><td>${j.num}</td><td style="text-align:left">${j.nombre.substring(0,12)}</td><td>${Math.floor(j.stats.tiempoSeg/60)}'</td><td>${j.stats.GOL.length}</td><td>${fTotal}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+        cont.innerHTML += html;
+        modal.style.display = 'flex';
+    }
+
+    function mostrarEstadisticaJugador(j) {
+        const modal = document.getElementById('modal-stats');
+        const cont = document.getElementById('contenido-stats');
+        cont.innerHTML = `<h2 style="color:var(--led-verde)">${j.num}. ${j.nombre}</h2>`;
+        cont.appendChild(crearMiniMapa(j.stats));
+        
+        let fTotal = (j.stats.FALTA_P1?.length || 0) + (j.stats.FALTA_P2?.length || 0);
+        cont.innerHTML += `<table class="tabla-stats"><tr><th>TIEMPO</th><td>${Math.floor(j.stats.tiempoSeg/60)} min</td></tr><tr><th>GOLES</th><td>${j.stats.GOL.length}</td></tr><tr><th>FALTAS</th><td>${fTotal}</td></tr><tr><th>AMARILLAS</th><td>${j.stats.AMARILLA.length}</td></tr><tr><th>ROJAS</th><td>${j.stats.ROJA.length}</td></tr></table>`;
+        modal.style.display = 'flex';
     }
 
     function toggleModo(m) { 
@@ -754,48 +839,26 @@
         }
     }
 
-    function mostrarEstadisticaEquipo(lado) {
-        const modal = document.getElementById('modal-stats');
-        const cont = document.getElementById('contenido-stats');
-        const eq = (lado === 'LOCAL') ? eqL : eqV;
-        let html = `<h2 style="color:var(--led-verde)">${lado}</h2><table class="tabla-stats"><thead><tr><th>#</th><th>NOM</th><th>T</th><th>G</th><th>F</th><th>A</th><th>AM</th><th>R</th></tr></thead><tbody>`;
-        eq.forEach(j => {
-            let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
-            html += `<tr><td>${j.num}</td><td style="text-align:left">${j.nombre.substring(0,10)}</td><td>${Math.floor(j.stats.tiempoSeg/60)}'</td><td>${j.stats.GOL.length}</td><td>${fTotal.length}</td><td>${j.stats.ASISTENCIA.length}</td><td>${j.stats.AMARILLA.length}</td><td>${j.stats.ROJA.length}</td></tr>`;
-        });
-        html += `</tbody></table>`;
-        cont.innerHTML = html; modal.style.display = 'flex';
-    }
-
-    function mostrarEstadisticaJugador(j) {
-        const modal = document.getElementById('modal-stats');
-        const cont = document.getElementById('contenido-stats');
-        let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
-        cont.innerHTML = `<h2 style="color:var(--led-verde)">${j.num}. ${j.nombre}</h2><table class="tabla-stats"><tr><th>DATO</th><th>VALOR</th></tr><tr><td>TIEMPO</td><td>${Math.floor(j.stats.tiempoSeg/60)} min</td></tr><tr><td>GOLES</td><td>${j.stats.GOL.length}</td></tr><tr><td>FALTAS</td><td>${fTotal.length}</td></tr><tr><td>AMARILLAS</td><td>${j.stats.AMARILLA.length}</td></tr><tr><td>ROJAS</td><td>${j.stats.ROJA.length}</td></tr></table>`;
-        modal.style.display = 'flex';
-    }
-
     function exportarEstadisticas() {
         const nomL = document.getElementById('nombre-local').value || "LOCAL";
         const nomV = document.getElementById('nombre-rival').value || "RIVAL";
         let txt = `ESTADÍSTICAS FUTSAL\n==================\n`;
-        txt += `TEMPORADA: ${document.getElementById('temporada-act').value}\nJORNADA: ${document.getElementById('jornada-act').value}\nFECHA: ${document.getElementById('fecha-act').value}\nPARTIDO: ${nomL} vs ${nomV}\n\n`;
+        txt += `PARTIDO: ${nomL} vs ${nomV}\n\n`;
 
         const procesar = (eqNombre, lista) => {
             let r = `EQUIPO: ${eqNombre}\n--------------------------\n`;
             lista.forEach(j => {
                 let fTotal = [...(j.stats.FALTA_P1 || []), ...(j.stats.FALTA_P2 || [])];
                 r += `${j.num}. ${j.nombre}\n`;
-                r += `   Goles: ${j.stats.GOL.length} [${j.stats.GOL.map(g => g.t + '(Z:'+g.z+')').join(', ')}]\n`;
-                r += `   Faltas: ${fTotal.length}\n   Asistencias: ${j.stats.ASISTENCIA.length}\n   Tarjetas: A(${j.stats.AMARILLA.length}) R(${j.stats.ROJA.length})\n   Tiempo: ${Math.floor(j.stats.tiempoSeg/60)} min\n\n`;
+                r += `   Goles: ${j.stats.GOL.length} [${j.stats.GOL.map(g => g.t + ' Z:' + g.z).join(', ')}]\n`;
+                r += `   Faltas: ${fTotal.length}\n   Asistencias: ${j.stats.ASISTENCIA.length}\n   Tiempo: ${Math.floor(j.stats.tiempoSeg/60)} min\n\n`;
             });
             return r;
         };
         txt += procesar(nomL, eqL); txt += procesar(nomV, eqV);
         txt += `\nTIEMPOS MUERTOS:\n`; historialTiemposMuertos.forEach(tm => { txt += `- ${tm.equipo}: Parte ${tm.parte} (Crono: ${tm.tiempo})\n`; });
         let blob = new Blob([txt], {type: "text/plain;charset=utf-8"});
-        let a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Futsal_${nomL}_vs_${nomV}.txt`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        let a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Futsal_Stats.txt`; a.click();
     }
 
     function activarKeepAwake() { if('wakeLock' in navigator) navigator.wakeLock.request('screen').catch(()=>{}); }
