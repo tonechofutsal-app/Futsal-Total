@@ -875,5 +875,28 @@
 
     window.onload = () => { cargarInputsConfig(); recuperarSesion(); };
 </script>
+    <script>
+// 1. Guardar automáticamente en el móvil
+document.querySelectorAll('input, textarea, select').forEach(element => {
+    element.addEventListener('input', () => {
+        if (element.id || element.name) {
+            localStorage.setItem(element.id || element.name, element.value);
+        }
+    });
+    
+    // 2. Recuperar automáticamente al abrir la página
+    if (element.id || element.name) {
+        const savedValue = localStorage.getItem(element.id || element.name);
+        if (savedValue) {
+            element.value = savedValue;
+        }
+    }
+});
+
+// 3. Avisar cuando vuelve la cobertura
+window.addEventListener('online', () => {
+    alert("¡Conexión recuperada! Ya hay internet.");
+});
+</script>
 </body>
 </html>
