@@ -213,5 +213,33 @@
             }
         }
     </script>
+    <script>
+        function toggleFullScreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        }
+    </script>
+
+    <!-- ESTO ES LO NUEVO QUE TIENES QUE AÑADIR -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then(reg => console.log('Service Worker registrado correctamente'))
+            .catch(err => console.log('Error al registrar: ', err));
+        });
+      }
+    </script>
+    <!-- FIN DE LO NUEVO -->
+
+</body>
+</html>
 </body>
 </html>
